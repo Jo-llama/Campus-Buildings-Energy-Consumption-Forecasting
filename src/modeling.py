@@ -36,7 +36,7 @@ class ModelBenchmark:
             X_test_scaled = self.scaler.transform(X_test)
             return X_train_scaled, X_test_scaled, y_train, y_test
         else:
-            print(f"Brak skalowania dla modelu: {model_name}")
+            print(f"{model_name} bez skalowania")
             return X_train, X_test, y_train, y_test
 
     def train_and_evaluate(self, X_train, X_test, y_train, y_test):
