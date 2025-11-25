@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c1cc954-492d-4e3e-a708-49f4636dd1bc" name="Changes" comment="struktura, uporzadkowanie notebookow">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/05-optymalizacja.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/05-optymalizacja.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/modeling.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/modeling.py" afterDir="false" />
-    </list>
+    <list default="true" id="6c1cc954-492d-4e3e-a708-49f4636dd1bc" name="Changes" comment="update danych, corr matrix, pca" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -119,7 +111,15 @@
       <option name="project" value="LOCAL" />
       <updated>1763634919753</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="update danych, corr matrix, pca">
+      <option name="closed" value="true" />
+      <created>1764091484916</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1764091484916</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -139,7 +139,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="init commit" />
     <MESSAGE value="struktura, uporzadkowanie notebookow" />
-    <option name="LAST_COMMIT_MESSAGE" value="struktura, uporzadkowanie notebookow" />
+    <MESSAGE value="update danych, corr matrix, pca" />
+    <option name="LAST_COMMIT_MESSAGE" value="update danych, corr matrix, pca" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/PythonProject$app.coverage" NAME="app Coverage Results" MODIFIED="1763200973654" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
