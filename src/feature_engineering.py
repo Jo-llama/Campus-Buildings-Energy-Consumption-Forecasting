@@ -19,7 +19,7 @@ def create_time_features(df: pd.DataFrame) -> pd.DataFrame:
     df['quarter'] = df['timestamp'].dt.quarter
 
     # Cechy cykliczne (sin/cos transformacja)
-    df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
+    df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24) # przelozenie na kąt
     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
     df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
     df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
@@ -167,3 +167,18 @@ def apply_all_features(df: pd.DataFrame, lags: list = [1, 24, 168], windows: lis
     print(f"  Braki danych: {df.isnull().sum().sum()}")
 
     return df
+
+
+def encode_categorical_features(df, categorical_cols):
+    """
+    Koduj kategorie na wektory one-hot.
+
+    Args:
+        df (pd.DataFrame): ramka z danymi
+        categorical_cols (list): lista nazw kolumn kategorycznych
+
+    Returns:
+        pd.DataFrame: ramka z zakodowanymi cechami
+    """
+    df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+    return df_encoded

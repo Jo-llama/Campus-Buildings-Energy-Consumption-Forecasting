@@ -4,7 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c1cc954-492d-4e3e-a708-49f4636dd1bc" name="Changes" comment="update danych, corr matrix, pca" />
+    <list default="true" id="6c1cc954-492d-4e3e-a708-49f4636dd1bc" name="Changes" comment="update danych, corr matrix, pca">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/data_processing.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/data_processing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/feature_engineering.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/feature_engineering.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -119,7 +126,23 @@
       <option name="project" value="LOCAL" />
       <updated>1764091484916</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="update danych, corr matrix, pca">
+      <option name="closed" value="true" />
+      <created>1764091908922</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1764091908922</updated>
+    </task>
+    <task id="LOCAL-00006" summary="update danych, corr matrix, pca">
+      <option name="closed" value="true" />
+      <created>1764092096566</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1764092096566</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

@@ -86,7 +86,7 @@ def train_test_split_temporal(
         date_col: str = 'timestamp'
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Temporal split - trenujemy na starszych danych, testujemy na nowszych.
+    Temporal split - trening starszych danych, test na nowszych.
     """
 
     df = df.sort_values(date_col)
