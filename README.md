@@ -142,7 +142,7 @@ Data sourced from **Kaggle UNICON dataset** (Building Energy & Utilities):
 ### Stage 1: Benchmark (`04_modeling.ipynb`)
 Train baseline models on all features to establish performance baseline:
 - **Lasso (L1 regularization):** Feature selection + regression in one step
-- **Ridge (L2 regularization):** Stable baseline → `ridge_optimized.joblib`
+- **Ridge (L2 regularization):** The weakest model - won't be taken under consideration
 - **Elastic Net:** Balance between L1 and L2
 - **Random Forest:** Non-linear baseline
 - **Gradient Boosting (sklearn):** Strong tree ensemble baseline
@@ -403,3 +403,4 @@ Based on test set evaluation (20% hold-out data):
 
 
 ---
+
