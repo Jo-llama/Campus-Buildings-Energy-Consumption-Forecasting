@@ -21,8 +21,8 @@ def get_models_path(*path_parts):
     return path
 
 def get_features_data_path():
-    """Ścieżka do pliku features_data.csv bez twardego wpisywania."""
-    return get_project_root() / "data" / "processed" / "features_data.csv"
+    """Ścieżka do pliku features_data_encoded.csv bez twardego wpisywania."""
+    return get_project_root() / "data" / "processed" / "features_data_encoded.csv"
 
 # Listy
 

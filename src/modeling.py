@@ -210,3 +210,43 @@ def plot_learning_curves_trained_models(benchmark, X_train, y_train, X_test, y_t
     plt.tight_layout()
     plt.show()
 
+    import pandas as pd
+    from sklearn.linear_model import Lasso
+    from sklearn.preprocessing import StandardScaler
+
+    def lasso_feature_selection(
+            X_train,
+            y_train,
+            alpha=0.1,
+            max_iter=10000,
+            top_k=None,
+            coef_threshold=1e-5
+    ):
+        """
+        Feature selection Lasssem na danych treningowych.
+
+        Zwraca:
+        - selected_features: lista nazw wybranych cech
+        - lasso_model: wytrenowany model Lasso (na zeskalowanych danych)
+        - scaler: StandardScaler dopasowany na X_train
+        - coef_series: pandas Series z wartościami współczynników (signed)
+        """
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_train)
+
+        lasso = Lasso(alpha=alpha, max_iter=max_iter, random_state=42)
+        lasso.fit(X_scaled, y_train)
+
+        coefs = pd.Series(lasso.coef_, index=X_train.columns)
+
+        # Selekcja:
+        if top_k is not None:
+            # bierzemy top_k po |współczynniku|
+            selected_features = coefs.abs().sort_values(ascending=False).head(top_k).index.tolist()
+        else:
+            # bierzemy wszystkie z |coef| > próg
+            selected_features = coefs[coefs.abs() > coef_threshold].index.tolist()
+
+        return selected_features, lasso, scaler, coefs
+
+
