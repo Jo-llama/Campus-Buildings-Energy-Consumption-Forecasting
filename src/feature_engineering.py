@@ -107,20 +107,23 @@ def create_weather_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_building_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Tworzy cechy na podstawie informacji o budynku.
+    Tworzy cechy na podstawie informacji o budynku wraz z dekadami roku budowy.
     """
     df = df.copy()
 
-    # Normalizacja cech budynku
-    if 'gross_floor_area' in df.columns:
+    if 'gross_floor_area' in df.columns and 'consumption' in df.columns:
         df['gross_floor_area'] = pd.to_numeric(df['gross_floor_area'], errors='coerce')
-        df['consumption_per_sqm'] = df['consumption'] / (df['gross_floor_area'] + 1e-6)
+        df['consumption_per_sqm'] = df['consumption'] / (df['gross_floor_area'].replace(0, pd.NA) + 1e-6)
 
-    if 'capacity' in df.columns:
+    if 'capacity' in df.columns and 'consumption' in df.columns:
         df['capacity'] = pd.to_numeric(df['capacity'], errors='coerce')
-        df['consumption_per_person'] = df['consumption'] / (df['capacity'] + 1e-6)
+        df['consumption_per_person'] = df['consumption'] / (df['capacity'].replace(0, pd.NA) + 1e-6)
 
-    print(f"✓ Building features: dodano cechy budynków")
+    if 'built_year' in df.columns:
+        df['built_year_decade'] = df['built_year'].apply(
+            lambda x: f"{int(x) // 10 * 10}s" if pd.notna(x) else np.nan
+        )
+        df = pd.get_dummies(df, columns=['built_year_decade'], prefix='decade')
 
     return df
 

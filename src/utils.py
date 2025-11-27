@@ -24,3 +24,16 @@ def get_features_data_path():
     """Ścieżka do pliku features_data.csv bez twardego wpisywania."""
     return get_project_root() / "data" / "processed" / "features_data.csv"
 
+# Listy
+
+pochodne_targetu = ['consumption_lag_1h', 'consumption_lag_24h', 'consumption_lag_168h',
+       'consumption_rolling_mean_3h', 'consumption_rolling_std_3h',
+       'consumption_rolling_mean_6h', 'consumption_rolling_std_6h',
+       'consumption_rolling_mean_24h', 'consumption_rolling_std_24h', 'consumption_per_sqm', 'consumption_per_person']
+
+target_col = "consumption"
+
+id_cols = ["campus_id",
+           "meter_id",
+           "campus_id_building"]
+
