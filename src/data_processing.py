@@ -1,7 +1,16 @@
+import os
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Tuple, Dict
+
+
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+import joblib
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]  # Katalog główny projektu
 
@@ -118,3 +127,106 @@ def load_processed_data(path: str = "data/processed/merged_data.csv") -> pd.Data
     df = pd.read_csv(full_path, parse_dates=['timestamp'])
     print(f"✓ Wczytano {df.shape[0]:,} wierszy, {df.shape[1]} kolumn")
     return df
+
+
+# src/data_processing.py
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+import joblib
+
+# src/data_processing.py - CZysty, działający kod
+import pandas as pd
+import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+import joblib
+import os
+
+
+def create_preprocessor():
+    """TWORZY TYLKO preprocessor - BEZ ŻADNEGO df"""
+    numerical_simple = ['gross_floor_area', 'apparent_temperature',
+                        'air_temperature', 'dew_point_temperature', 'relative_humidity']
+    numerical_high_missing = ['room_area', 'capacity']
+    numerical_weather = ['wind_speed']
+    categorical_ordinal = ['built_year']
+    categorical_nominal = ['category', 'name']
+    binary_flags = ['is_holiday', 'is_semester', 'is_exam']
+    id_cols = ['campus_id', 'meter_id', 'timestamp']
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('simple_num', Pipeline([
+                ('imputer', SimpleImputer(strategy='median')),
+                ('scaler', StandardScaler())
+            ]), numerical_simple),
+            ('high_missing', Pipeline([
+                ('imputer', KNNImputer(n_neighbors=5)),
+                ('scaler', StandardScaler())
+            ]), numerical_high_missing),
+            ('weather', Pipeline([
+                ('imputer', SimpleImputer(strategy='median')),
+                ('scaler', StandardScaler())
+            ]), numerical_weather),
+            ('built_year', Pipeline([
+                ('imputer', SimpleImputer(strategy='most_frequent')),
+                ('scaler', StandardScaler())
+            ]), categorical_ordinal),
+            ('cat_nominal', Pipeline([
+                ('imputer', SimpleImputer(strategy='most_frequent')),
+                ('encoder', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+            ]), categorical_nominal),
+            ('binary', 'passthrough', binary_flags),
+            ('drop_cols', 'drop', id_cols)
+        ],
+        remainder='drop'
+    )
+    return preprocessor
+
+
+def add_informative_missing_flags(df_raw):
+    """Tworzy flagi missing"""
+    flags = pd.DataFrame(index=df_raw.index)
+    for col in ['room_area', 'capacity', 'capacity_campus', 'built_year']:
+        if col in df_raw.columns:
+            flags[f'{col}_missing'] = df_raw[col].isnull().astype(int)
+    return flags
+
+
+def process_data_pipeline(df_raw, save_path='data/processed/model_ready.parquet'):
+    """Główna funkcja - BEZ BŁĘDÓW"""
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    preprocessor = create_preprocessor()  # TUTAJ JEST WYWOŁYWANE
+
+    X = df_raw.drop(['consumption'], axis=1)
+    y = df_raw['consumption'].reset_index(drop=True)
+
+    print("Preprocessing...", end=" ")
+    X_processed = preprocessor.fit_transform(X)
+
+    missing_flags = add_informative_missing_flags(df_raw)
+
+    feature_names = list(preprocessor.get_feature_names_out()) + missing_flags.columns.tolist()
+    X_final = pd.DataFrame(
+        np.hstack([X_processed, missing_flags.values]),
+        columns=feature_names,
+        index=df_raw.index
+    )
+
+    final_df = pd.concat([X_final.reset_index(drop=True), y], axis=1)
+    final_df.to_parquet(save_path)
+
+    os.makedirs('models', exist_ok=True)
+    joblib.dump(preprocessor, 'models/preprocessor.pkl')
+
+    print(f"✓ GOTOWE: {len(final_df)} rekordów -> {save_path}")
+    return final_df, preprocessor
+
+
+
