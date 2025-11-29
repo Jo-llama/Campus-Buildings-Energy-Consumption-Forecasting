@@ -4,7 +4,6 @@ Time series machine learning project for predicting energy consumption in campus
 Project Overview
 This project aims to forecast energy consumption (in kWh) for campus buildings using machine learning models trained on historical time series data. The workflow includes exploratory analysis, feature engineering with lags and rolling windows, feature selection via Lasso regression, hyperparameter optimization with Optuna, and model explainability using SHAP.
 
-Dataset size: 4.48 million hourly observations
 Number of buildings/meters: Multiple across campus
 Target variable: consumption (kWh)
 Temporal split: 80% training / 20% testing (respecting chronological order)
