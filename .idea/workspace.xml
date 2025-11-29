@@ -6,14 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="6c1cc954-492d-4e3e-a708-49f4636dd1bc" name="Changes" comment="Shap, optuna, explainability">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/01-eda.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/01-eda.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/02_data_processing.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/03_feature_engineering.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/04_modeling.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/05-optymalizacja.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/05-optymalizacja.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/notebooks/06_explainability.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/06_explainability.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/data_processing.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/data_processing.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/explainability.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/explainability.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
