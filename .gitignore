@@ -3,3 +3,4 @@ __pycache__/
 
 # Dane pośrednie (duże, odtwarzalne z kodu)
 data/processed/
+data/raw/

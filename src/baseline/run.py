@@ -6,7 +6,8 @@ from typing import Dict
 import pandas as pd
 
 from src.baseline import config
-from src.baseline.features import STATIC_NUMERIC, add_static_features
+from src.baseline.features import (STATIC_NUMERIC, add_static_features, build_features,
+                                    feature_columns)
 from src.baseline.io import load_calendar, load_events, load_merged, save_parquet
 from src.baseline.leakage import find_forbidden
 from src.baseline.resample import hourly_summary, to_hourly
@@ -48,15 +49,42 @@ def step_static() -> Dict:
     return report
 
 
-STEPS = {"resample": step_resample, "static": step_static}
+def step_features(horizon_h: int = config.HORIZON_H) -> Dict:
+    """Krok 7.3: hourly.parquet -> features_h{h}.parquet; raport braków i korelacji."""
+    hourly = pd.read_parquet(config.HOURLY_PARQUET)
+    f = build_features(hourly, horizon_h)
+    path = config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h)
+    save_parquet(f, path)
+    feats = feature_columns(horizon_h)
+    sample = f.dropna(subset=[config.TARGET]).sample(300_000, random_state=config.SEED)
+    num = [c for c in feats if c != "category"]
+    rho = sample[num].corrwith(sample[config.TARGET], method="spearman").abs()
+    report = {
+        "path": str(path),
+        "rows": int(len(f)),
+        "n_features": len(feats),
+        "features": feats,
+        "nan_pct": (100 * f[feats].isna().mean()).round(2)[lambda x: x > 0].to_dict(),
+        "spearman_abs_top5": rho.sort_values(ascending=False).head(5).round(4).to_dict(),
+    }
+    print(json.dumps(report, indent=2))
+    return report
+
+
+STEPS = {"resample": step_resample, "static": step_static, "features": step_features}
 
 
 def main() -> None:
     """Parsuje argumenty i uruchamia wybrany krok."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--step", required=True, choices=sorted(STEPS))
+    parser.add_argument("--horizon", type=int, default=config.HORIZON_H,
+                        help="horyzont prognozy w godzinach (tylko --step features)")
     args = parser.parse_args()
-    STEPS[args.step]()
+    if args.step == "features":
+        step_features(args.horizon)
+    else:
+        STEPS[args.step]()
 
 
 if __name__ == "__main__":
