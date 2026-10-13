@@ -44,3 +44,13 @@ DEGREE_BASE_C: float = 18.0
 WEATHER_FEATURES: list = ["air_temperature", "apparent_temperature", "relative_humidity", "wind_speed"]
 CATEGORICAL_FEATURES: list = ["meter_id", "category"]
 FEATURES_PARQUET_TMPL: str = "features_h{h}.parquet"
+
+# --- 7.4: split czasowy (jedyne źródło prawdy dla dat) ---
+# Daty końcowe są włączne (cały dzień); po każdej części przerwa GAP_DAYS dni jest usuwana.
+TRAIN_END: str = "2021-04-30"
+VAL_END: str = "2021-10-31"
+GAP_DAYS: int = 7
+SPLITS_DIR: Path = DATA_PROCESSED / "splits"
+# Wiersz trafia do splitu tylko, gdy target i lagi potrzebne modelom/naive nie są NaN
+# (wszystkie modele oceniane na tych samych wierszach). {h} = horyzont.
+REQUIRED_NONNULL_TMPL: list = ["consumption", "lag_{h}h", "lag_24h", "lag_168h"]

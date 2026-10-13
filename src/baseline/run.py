@@ -11,6 +11,7 @@ from src.baseline.features import (STATIC_NUMERIC, add_static_features, build_fe
 from src.baseline.io import load_calendar, load_events, load_merged, save_parquet
 from src.baseline.leakage import find_forbidden
 from src.baseline.resample import hourly_summary, to_hourly
+from src.baseline.split import coverage_by_meter, make_splits
 
 
 def step_resample() -> Dict:
@@ -71,7 +72,30 @@ def step_features(horizon_h: int = config.HORIZON_H) -> Dict:
     return report
 
 
-STEPS = {"resample": step_resample, "static": step_static, "features": step_features}
+def step_split(horizon_h: int = config.HORIZON_H) -> Dict:
+    """Krok 7.4: features_h{h}.parquet -> splits/{train,val,test}.parquet + manifest.json."""
+    f = pd.read_parquet(config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h))
+    f.attrs["horizon_h"] = horizon_h
+    splits = make_splits(f, config.TRAIN_END, config.VAL_END, config.GAP_DAYS)
+    for name, part in splits.items():
+        save_parquet(part, config.SPLITS_DIR / f"{name}.parquet")
+    cov = coverage_by_meter(splits)
+    manifest = {
+        "horizon_h": horizon_h,
+        "train_end": config.TRAIN_END, "val_end": config.VAL_END, "gap_days": config.GAP_DAYS,
+        "splits": {n: s.attrs["report"] for n, s in splits.items()},
+        "rows_per_meter": {n: {int(m): int(v) for m, v in cov[n].items()} for n in cov.columns},
+    }
+    (config.SPLITS_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    print(json.dumps({k: v for k, v in manifest.items() if k != "rows_per_meter"}, indent=2))
+    thin = cov[(cov["val"] < 500) | (cov["test"] < 500)]
+    print(f"Liczniki z < 500 wierszy w val lub test ({len(thin)}):")
+    print(thin.to_string())
+    return manifest
+
+
+STEPS = {"resample": step_resample, "static": step_static, "features": step_features,
+         "split": step_split}
 
 
 def main() -> None:
@@ -79,10 +103,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--step", required=True, choices=sorted(STEPS))
     parser.add_argument("--horizon", type=int, default=config.HORIZON_H,
-                        help="horyzont prognozy w godzinach (tylko --step features)")
+                        help="horyzont prognozy w godzinach (--step features/split)")
     args = parser.parse_args()
-    if args.step == "features":
-        step_features(args.horizon)
+    if args.step in ("features", "split"):
+        STEPS[args.step](args.horizon)
     else:
         STEPS[args.step]()
 
