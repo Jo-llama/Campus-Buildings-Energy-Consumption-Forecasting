@@ -6,7 +6,7 @@ from src.baseline.resample import to_hourly
 
 
 def _toy() -> pd.DataFrame:
-    """Jeden licznik, 3 godziny: pełna, z ujemnym odczytem, z lukąw środku."""
+    """Jeden licznik, 3 godziny: pełna, z ujemnym odczytem, z luką w środku."""
     ts = pd.to_datetime([
         "2020-01-01 00:15", "2020-01-01 00:30", "2020-01-01 00:45", "2020-01-01 01:00",  # h0: pełna
         "2020-01-01 01:15", "2020-01-01 01:30", "2020-01-01 01:45", "2020-01-01 02:00",  # h1: ujemny

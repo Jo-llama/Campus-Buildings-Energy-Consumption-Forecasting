@@ -1,0 +1,5 @@
+# Python
+__pycache__/
+
+# Dane pośrednie (duże, odtwarzalne z kodu)
+data/processed/

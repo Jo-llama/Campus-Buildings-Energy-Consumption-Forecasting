@@ -6,7 +6,9 @@ from typing import Dict
 import pandas as pd
 
 from src.baseline import config
+from src.baseline.features import STATIC_NUMERIC, add_static_features
 from src.baseline.io import load_calendar, load_events, load_merged, save_parquet
+from src.baseline.leakage import find_forbidden
 from src.baseline.resample import hourly_summary, to_hourly
 
 
@@ -29,7 +31,24 @@ def step_resample() -> Dict:
     return report
 
 
-STEPS = {"resample": step_resample}
+def step_static() -> Dict:
+    """Krok 7.2: sprawdza brak cech wyciekających i raportuje cechy statyczne budynku."""
+    hourly = pd.read_parquet(config.HOURLY_PARQUET)
+    old = pd.read_csv(config.DATA_PROCESSED / "features_data_pca.csv", nrows=0).columns
+    df, static_report = add_static_features(hourly)
+    report = {
+        "rows_before": int(len(hourly)),
+        "rows_after": int(len(df)),
+        "old_pipeline_forbidden_cols": find_forbidden(old),
+        "hourly_forbidden_cols": find_forbidden(c for c in hourly.columns),
+        "static": static_report,
+        "row_missing_pct": (100 * df[STATIC_NUMERIC].isna().mean()).round(2).to_dict(),
+    }
+    print(json.dumps(report, indent=2))
+    return report
+
+
+STEPS = {"resample": step_resample, "static": step_static}
 
 
 def main() -> None:
