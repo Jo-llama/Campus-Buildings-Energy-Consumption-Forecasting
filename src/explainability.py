@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 
 def shap_summary_global(model, X, max_display=30):
     """
-    Globalne znaczenie cech dla modelu drzewiastego (np. XGBoost)
-    przy użyciu SHAP TreeExplainer.
+    Global feature importance for a tree-based model (e.g. XGBoost)
+    using SHAP TreeExplainer.
     """
-    explainer = shap.TreeExplainer(model)  # TreeExplainer jest zalecany dla XGBoost[web:104][web:113]
+    explainer = shap.TreeExplainer(model)  # TreeExplainer is recommended for XGBoost
     shap_values = explainer(X)
 
-    # beeswarm – rozkład wartości SHAP dla wszystkich obserwacji[web:103][web:106]
+    # beeswarm — distribution of SHAP values across all observations
     shap.summary_plot(
         shap_values.values,
         X,
@@ -22,7 +22,7 @@ def shap_summary_global(model, X, max_display=30):
 
 def shap_summary_bar(model, X, max_display=30):
     """
-    Globalne znaczenie cech – barplot z średnich |SHAP|[web:108][web:117].
+    Global feature importance — bar plot of mean |SHAP| values.
     """
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X)
@@ -38,7 +38,7 @@ def shap_summary_bar(model, X, max_display=30):
 
 def shap_waterfall_single(model, X, index=0, max_display=15):
     """
-    Lokalna interpretacja dla jednej obserwacji (waterfall plot)[web:112][web:113].
+    Local interpretation for a single observation (waterfall plot).
     """
     explainer = shap.TreeExplainer(model)
     shap_values = explainer(X)
@@ -156,7 +156,7 @@ def lasso_comparison_benchmark_vs_optuna(
     fig = plt.figure(figsize=(16, 10))
     gs = fig.add_gridspec(3, 2, hspace=0.35, wspace=0.3)
 
-    # 1. METRYKI
+    # 1. METRICS
     ax1 = fig.add_subplot(gs[0, 0])
     metrics_names = ['RMSE', 'MAE', 'R²']
     benchmark_vals = [benchmark_metrics['RMSE'], benchmark_metrics['MAE'], benchmark_metrics['R2']]
@@ -195,7 +195,7 @@ def lasso_comparison_benchmark_vs_optuna(
         ax2.text(imp + (0.5 if imp > 0 else -0.5), i, f'{imp:+.1f}%', va='center', ha='left' if imp > 0 else 'right',
                  fontsize=10, fontweight='bold')
 
-    # 3. Coefficients benchmark
+    # 3. Benchmark coefficients
     ax3 = fig.add_subplot(gs[1, 0])
     coef_bench = pd.Series(lasso_benchmark.coef_, index=X_test_benchmark.columns)
     coef_bench_sorted = coef_bench.abs().nlargest(15)

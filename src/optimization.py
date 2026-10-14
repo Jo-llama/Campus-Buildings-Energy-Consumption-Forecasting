@@ -13,7 +13,7 @@ def tune_lasso_optuna(X_train_fs, X_test_fs, y_train, y_test, n_trials=30,
                       save_study_path=None):
     def objective_lasso(trial):
         alpha = trial.suggest_float("alpha", 1e-4, 1.0, log=True)
-        max_iter = trial.suggest_int("max_iter", 2000, 20000)
+        max_iter = trial.suggest_int("max_iter", 1000, 20000)
 
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train_fs)
@@ -32,6 +32,7 @@ def tune_lasso_optuna(X_train_fs, X_test_fs, y_train, y_test, n_trials=30,
     best_alpha = study.best_params["alpha"]
     best_max_iter = study.best_params["max_iter"]
 
+    # Refit final model with best hyperparameters
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_fs)
     X_test_scaled = scaler.transform(X_test_fs)
@@ -39,7 +40,7 @@ def tune_lasso_optuna(X_train_fs, X_test_fs, y_train, y_test, n_trials=30,
     best_lasso = Lasso(alpha=best_alpha, max_iter=best_max_iter, random_state=42)
     best_lasso.fit(X_train_scaled, y_train)
 
-    # === ZAPIS MODELU I SCALERA ===
+    # === SAVE MODEL AND SCALER ===
     if save_path_model is not None:
         joblib.dump(best_lasso, save_path_model)
     if save_path_scaler is not None:
@@ -59,7 +60,7 @@ def tune_xgb_optuna(
     save_path_model="models/best_xgb_optuna.joblib",
     save_study_path=None,
 ):
-    """Optuna dla XGBoost na zredukowanych cechach + zapis najlepszego modelu."""
+    """Optuna for XGBoost on reduced features + saves best model."""
 
     def objective_xgb(trial):
         params = {
@@ -69,7 +70,7 @@ def tune_xgb_optuna(
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
             "min_child_weight": trial.suggest_float("min_child_weight", 1.0, 10.0),
             "gamma": trial.suggest_float("gamma", 0.0, 5.0),
-            "n_estimators": trial.suggest_int("n_estimators", 200, 600),
+            "n_estimators": trial.suggest_int("n_estimators", 200, 1000),
             "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
             "reg_alpha": trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
         }
@@ -78,11 +79,16 @@ def tune_xgb_optuna(
             **params,
             tree_method="hist",
             eval_metric="rmse",
+            early_stopping_rounds=50,
             random_state=42,
             n_jobs=-1,
         )
 
-        model.fit(X_train_fs, y_train)
+        model.fit(
+            X_train_fs, y_train,
+            eval_set=[(X_test_fs, y_test)],
+            verbose=False,
+        )
         preds = model.predict(X_test_fs)
         rmse = np.sqrt(mean_squared_error(y_test, preds))
         return rmse
@@ -92,16 +98,22 @@ def tune_xgb_optuna(
 
     best_params = study.best_params
 
+    # Refit final model with best hyperparameters
     best_xgb = xgb.XGBRegressor(
         **best_params,
         tree_method="hist",
         eval_metric="rmse",
+        early_stopping_rounds=50,
         random_state=42,
         n_jobs=-1,
     )
-    best_xgb.fit(X_train_fs, y_train)
+    best_xgb.fit(
+        X_train_fs, y_train,
+        eval_set=[(X_test_fs, y_test)],
+        verbose=False,
+    )
 
-    # === ZAPIS NAJLEPSZEGO MODELU ===
+    # === SAVE BEST MODEL ===
     if save_path_model is not None:
         joblib.dump(best_xgb, save_path_model)
     if save_study_path is not None:

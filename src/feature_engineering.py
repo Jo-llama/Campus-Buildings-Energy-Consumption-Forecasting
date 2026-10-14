@@ -5,12 +5,12 @@ from datetime import timedelta
 
 def create_time_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Tworzy cechy czasowe z kolumny timestamp.
+    Creates time-based features from the timestamp column.
     """
     df = df.copy()
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-    # Podstawowe cechy czasowe
+    # Basic time features
     df['hour'] = df['timestamp'].dt.hour
     df['day_of_week'] = df['timestamp'].dt.dayofweek
     df['month'] = df['timestamp'].dt.month
@@ -18,33 +18,33 @@ def create_time_features(df: pd.DataFrame) -> pd.DataFrame:
     df['week_of_year'] = df['timestamp'].dt.isocalendar().week
     df['quarter'] = df['timestamp'].dt.quarter
 
-    # Cechy cykliczne (sin/cos transformacja)
-    df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24) # przelozenie na kąt
+    # Cyclic features (sin/cos transformation to capture periodicity)
+    df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
     df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
     df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
     df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
     df['day_sin'] = np.sin(2 * np.pi * df['day_of_week'] / 7)
     df['day_cos'] = np.cos(2 * np.pi * df['day_of_week'] / 7)
 
-    # Dummy zmienne
+    # Binary flag features
     df['is_weekend'] = (df['day_of_week'] >= 5).astype(int)
     df['is_night'] = ((df['hour'] >= 22) | (df['hour'] < 6)).astype(int)
     df['is_morning'] = ((df['hour'] >= 6) & (df['hour'] < 12)).astype(int)
     df['is_afternoon'] = ((df['hour'] >= 12) & (df['hour'] < 18)).astype(int)
     df['is_evening'] = ((df['hour'] >= 18) & (df['hour'] < 22)).astype(int)
 
-    print(f"✓ Time features: {df.shape[1]} kolumn")
+    print(f"✓ Time features: {df.shape[1]} columns")
 
     return df
 
 
 def create_lagged_features(df: pd.DataFrame, lags: list = [1, 24, 168]) -> pd.DataFrame:
     """
-    Tworzy opóźnione cechy (lag features) dla consumption.
+    Creates lagged features for consumption.
 
     Args:
         df: DataFrame
-        lags: Lista opóźnień (w godzinach)
+        lags: List of lag offsets (in hours)
     """
     df = df.copy()
     df = df.sort_values(['meter_id', 'timestamp'])
@@ -52,18 +52,18 @@ def create_lagged_features(df: pd.DataFrame, lags: list = [1, 24, 168]) -> pd.Da
     for lag in lags:
         df[f'consumption_lag_{lag}h'] = df.groupby('meter_id')['consumption'].shift(lag)
 
-    print(f"✓ Lag features: dodano {len(lags)} opóźnień")
+    print(f"✓ Lag features: added {len(lags)} lags")
 
     return df
 
 
 def create_rolling_features(df: pd.DataFrame, windows: list = [3, 6, 24]) -> pd.DataFrame:
     """
-    Tworzy rolling statistics dla consumption.
+    Creates rolling statistics for consumption.
 
     Args:
         df: DataFrame
-        windows: Lista rozmiarów okien (w godzinach)
+        windows: List of window sizes (in hours)
     """
     df = df.copy()
     df = df.sort_values(['meter_id', 'timestamp'])
@@ -76,18 +76,18 @@ def create_rolling_features(df: pd.DataFrame, windows: list = [3, 6, 24]) -> pd.
             df.groupby('meter_id')['consumption'].rolling(window=window, min_periods=1).std().reset_index(0, drop=True)
         )
 
-    print(f"✓ Rolling features: dodano {len(windows) * 2} cech")
+    print(f"✓ Rolling features: added {len(windows) * 2} features")
 
     return df
 
 
 def create_weather_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Tworzy cechy pochodne pogody.
+    Creates derived weather features.
     """
     df = df.copy()
 
-    # Cechy pogody
+    # Weather-derived features
     if 'apparent_temperature' in df.columns and 'air_temperature' in df.columns:
         df['temperature_diff'] = df['apparent_temperature'] - df['air_temperature']
 
@@ -100,14 +100,14 @@ def create_weather_features(df: pd.DataFrame) -> pd.DataFrame:
     if 'wind_speed' in df.columns:
         df['wind_speed_squared'] = df['wind_speed'] ** 2
 
-    print(f"✓ Weather features: dodano cechy pochodne")
+    print(f"✓ Weather features: derived features added")
 
     return df
 
 
 def create_building_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Tworzy cechy na podstawie informacji o budynku wraz z dekadami roku budowy.
+    Creates features based on building information including construction decade dummies.
     """
     df = df.copy()
 
@@ -130,26 +130,26 @@ def create_building_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def create_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Tworzy cechy interakcji między zmiennymi.
+    Creates interaction features between variables.
     """
     df = df.copy()
 
-    # Interakcja temperatura x wilgotność
+    # Temperature x humidity interaction
     if 'air_temperature' in df.columns and 'relative_humidity' in df.columns:
         df['temp_humidity_interaction'] = df['air_temperature'] * (df['relative_humidity'] / 100)
 
-    # Interakcja dzień tygodnia x godzina
+    # Day of week x hour interaction
     if 'day_of_week' in df.columns and 'hour' in df.columns:
         df['day_hour_interaction'] = df['day_of_week'] * df['hour']
 
-    print(f"✓ Interaction features: dodano cechy interakcji")
+    print(f"✓ Interaction features: interaction features added")
 
     return df
 
 
 def apply_all_features(df: pd.DataFrame, lags: list = [1, 24, 168], windows: list = [3, 6, 24]) -> pd.DataFrame:
     """
-    Stosuje wszystkie transformacje feature engineering'u.
+    Applies all feature engineering transformations.
     """
     print("\n" + "=" * 80)
     print("FEATURE ENGINEERING")
@@ -162,26 +162,26 @@ def apply_all_features(df: pd.DataFrame, lags: list = [1, 24, 168], windows: lis
     df = create_building_features(df)
     df = create_interaction_features(df)
 
-    # Usunięcie NaN powstałych z lag/rolling features
+    # Drop NaN rows introduced by lag/rolling features
     df = df.dropna()
 
-    print(f"\n✓ Feature engineering zakończony")
-    print(f"  Wymiary: {df.shape[0]:,} wierszy × {df.shape[1]} kolumn")
-    print(f"  Braki danych: {df.isnull().sum().sum()}")
+    print(f"\n✓ Feature engineering complete")
+    print(f"  Shape: {df.shape[0]:,} rows x {df.shape[1]} columns")
+    print(f"  Missing values: {df.isnull().sum().sum()}")
 
     return df
 
 
 def encode_categorical_features(df, categorical_cols):
     """
-    Koduj kategorie na wektory one-hot.
+    Encodes categorical columns with one-hot encoding.
 
     Args:
-        df (pd.DataFrame): ramka z danymi
-        categorical_cols (list): lista nazw kolumn kategorycznych
+        df (pd.DataFrame): input DataFrame
+        categorical_cols (list): list of categorical column names
 
     Returns:
-        pd.DataFrame: ramka z zakodowanymi cechami
+        pd.DataFrame: DataFrame with encoded features
     """
     df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
     return df_encoded
