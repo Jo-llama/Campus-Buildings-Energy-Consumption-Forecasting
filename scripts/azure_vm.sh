@@ -11,15 +11,18 @@
 #   scripts/azure_vm.sh start       # start a deallocated VM again
 #   scripts/azure_vm.sh delete      # delete the whole resource group (VM, disk, IP)
 #
-# Override any default with env vars, e.g. VM_SIZE=Standard_E4s_v5 scripts/azure_vm.sh create
+# Override any default with env vars, e.g. VM_SIZE=Standard_D4s_v7 scripts/azure_vm.sh create
 set -euo pipefail
 
 RG="${RG:-campus-energy-rg}"
 VM="${VM:-campus-energy-vm}"
-LOCATION="${LOCATION:-westeurope}"
-# 4 vCPU / 16 GB fits the usual free-trial quota of 4 vCPUs per region.
-# If the resample step runs out of memory, use Standard_E4s_v5 (4 vCPU / 32 GB).
-VM_SIZE="${VM_SIZE:-Standard_D4s_v5}"
+# westeurope is not accepting new customers (RequestDisallowedByAzure)
+LOCATION="${LOCATION:-swedencentral}"
+# 4 vCPU / 32 GB fits the free-trial quota of 4 vCPUs per region. Check which
+# sizes your subscription may use with: az vm list-skus -l <region> --size Standard_E4
+VM_SIZE="${VM_SIZE:-Standard_E4s_v5}"
+# v6/v7 sizes only support NVMe disks: use DISK_CTRL=NVMe with those.
+DISK_CTRL="${DISK_CTRL:-SCSI}"
 ADMIN="${ADMIN:-azureuser}"
 HORIZONS="${HORIZONS:-1 24}"
 # Spot VMs cost much less but can be evicted; set SPOT=1 to use one.
@@ -39,10 +42,13 @@ case "${1:-}" in
       --image Ubuntu2204 --size "$VM_SIZE" \
       --admin-username "$ADMIN" --generate-ssh-keys \
       --os-disk-size-gb 64 --public-ip-sku Standard \
+      --disk-controller-type "$DISK_CTRL" \
       "${spot_args[@]}" -o table
     # Safety net: shut down every night at 23:00 UTC in case you forget `stop`.
     az vm auto-shutdown -g "$RG" -n "$VM" --time 2300 -o none
-    echo "VM ready at $(ip). Next: $0 train"
+    vm_ip="$(ip)"
+    [[ -n "$vm_ip" ]] || { echo "VM has no public IP - creation failed?" >&2; exit 1; }
+    echo "VM ready at $vm_ip. Next: $0 train"
     ;;
   train)
     scp -o StrictHostKeyChecking=accept-new "$ROOT/scripts/vm_train.sh" "$ADMIN@$(ip):~/vm_train.sh"
