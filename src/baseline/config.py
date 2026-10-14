@@ -54,3 +54,28 @@ SPLITS_DIR: Path = DATA_PROCESSED / "splits"
 # Wiersz trafia do splitu tylko, gdy target i lagi potrzebne modelom/naive nie są NaN
 # (wszystkie modele oceniane na tych samych wierszach). {h} = horyzont.
 REQUIRED_NONNULL_TMPL: list = ["consumption", "lag_{h}h", "lag_24h", "lag_168h"]
+
+# --- 7.5: modele bazowe (naive + LightGBM) ---
+MODELS_DIR: Path = PROJECT_ROOT / "models" / "baseline"
+RESULTS_DIR: Path = PROJECT_ROOT / "results" / "baseline"
+# Prognozy naiwne = kolumna lagu; {h} = horyzont (dla h=24 naive_last == naive_day -> pomijany)
+NAIVE_LAGS_TMPL: dict = {"naive_last": "lag_{h}h", "naive_day": "lag_24h", "naive_week": "lag_168h"}
+# Parametry stałe (bez strojenia) - strojenie dopiero po uczciwym baseline
+LGBM_PARAMS: dict = {
+    "objective": "regression",
+    "metric": ["l1", "l2"],
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "lambda_l2": 1.0,
+    "seed": SEED,
+    "deterministic": True,
+    "force_row_wise": True,
+    "verbosity": -1,
+}
+LGBM_NUM_BOOST_ROUND: int = 5000
+# Early stopping wyłącznie na val (pierwsza metryka = l1); test nie bierze udziału w uczeniu
+LGBM_EARLY_STOPPING: int = 100
