@@ -6,6 +6,7 @@ from typing import Dict
 import pandas as pd
 
 from src.baseline import config
+from src.baseline.compare_old import ablation_table, old_reported_vs_persistence, run_ablation
 from src.baseline.features import (STATIC_NUMERIC, add_static_features, build_features,
                                     feature_columns)
 from src.baseline.io import load_calendar, load_events, load_merged, save_parquet
@@ -144,8 +145,33 @@ def step_train(horizon_h: int = config.HORIZON_H) -> Dict:
     return report
 
 
+def step_compare_old(horizon_h: int = config.HORIZON_H) -> Dict:
+    """Krok 7.6: ablacja błędów starego pipeline'u + stare wyniki vs persistence 15 min."""
+    f = pd.read_parquet(config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h))
+    results = run_ablation(f, horizon_h)
+    table = ablation_table(results)
+    old_csvs = sorted((config.PROJECT_ROOT / "results").glob("modeling_results*.csv"))
+    old = old_reported_vs_persistence(old_csvs, config.DATA_PROCESSED / "features_data.csv")
+
+    tag = f"h{horizon_h}"
+    config.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    table.to_csv(config.RESULTS_DIR / f"compare_old_ablation_{tag}.csv")
+    report = {"horizon_h": horizon_h, "ablation": results, "old_pipeline": old}
+    (config.RESULTS_DIR / f"compare_old_{tag}.json").write_text(json.dumps(report, indent=2),
+                                                               encoding="utf-8")
+    with pd.option_context("display.width", 200):
+        print("\n=== Ablacja (test, LightGBM vs naive_last na tych samych wierszach) ===")
+        print(table.round(4).to_string())
+    print("\n=== Stary pipeline: raportowane metryki vs persistence 15 min na starym teście ===")
+    print(json.dumps({k: v for k, v in old.items() if k != "reported"}, indent=2))
+    for name, models in old["reported"].items():
+        print(name)
+        print(pd.DataFrame.from_dict(models, orient="index").round(4).to_string())
+    return report
+
+
 STEPS = {"resample": step_resample, "static": step_static, "features": step_features,
-         "split": step_split, "train": step_train}
+         "split": step_split, "train": step_train, "compare_old": step_compare_old}
 
 
 def main() -> None:
@@ -153,9 +179,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--step", required=True, choices=sorted(STEPS))
     parser.add_argument("--horizon", type=int, default=config.HORIZON_H,
-                        help="horyzont prognozy w godzinach (--step features/split/train)")
+                        help="horyzont prognozy w godzinach (--step features/split/train/compare_old)")
     args = parser.parse_args()
-    if args.step in ("features", "split", "train"):
+    if args.step in ("features", "split", "train", "compare_old"):
         STEPS[args.step](args.horizon)
     else:
         STEPS[args.step]()

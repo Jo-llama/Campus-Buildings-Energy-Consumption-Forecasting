@@ -31,29 +31,38 @@ def categorical_dtypes(train: pd.DataFrame) -> Dict[str, CategoricalDtype]:
     return {c: CategoricalDtype(sorted(pd.unique(train[c].dropna()))) for c in config.CATEGORICAL_FEATURES}
 
 
-def model_matrix(df: pd.DataFrame, horizon_h: int,
-                 cat_dtypes: Dict[str, CategoricalDtype]) -> pd.DataFrame:
-    """Macierz cech modelu z kategoriami wyrównanymi do słownika z train."""
-    feats = feature_columns(horizon_h)
-    assert_no_forbidden(feats)
+def model_matrix(df: pd.DataFrame, horizon_h: int, cat_dtypes: Dict[str, CategoricalDtype],
+                 features: Optional[List[str]] = None, allow_leaky: bool = False) -> pd.DataFrame:
+    """Macierz cech modelu z kategoriami wyrównanymi do słownika z train.
+
+    features=None -> feature_columns(horizon_h). allow_leaky=True wyłącza strażnika wycieku -
+    tylko do ablacji starego pipeline'u (7.6), nigdy dla modelu raportowanego jako baseline.
+    """
+    feats = list(features) if features is not None else feature_columns(horizon_h)
+    if not allow_leaky:
+        assert_no_forbidden(feats)
     X = df[feats].copy()
     for c, dtype in cat_dtypes.items():
-        X[c] = X[c].astype(object).astype(dtype)
+        if c in X.columns:
+            X[c] = X[c].astype(object).astype(dtype)
     return X
 
 
 def train_lgbm(train: pd.DataFrame, val: pd.DataFrame, horizon_h: int,
                params: Optional[Dict] = None,
                num_boost_round: int = config.LGBM_NUM_BOOST_ROUND,
-               early_stopping: int = config.LGBM_EARLY_STOPPING) -> lgb.Booster:
+               early_stopping: int = config.LGBM_EARLY_STOPPING,
+               features: Optional[List[str]] = None, allow_leaky: bool = False) -> lgb.Booster:
     """Uczy LightGBM na train; val służy tylko do early stopping. Test nie jest argumentem.
 
-    Słownik kategorii zapisuje się w `booster.cat_dtypes` (do predykcji).
+    Słownik kategorii zapisuje się w `booster.cat_dtypes`, a flaga w `booster.allow_leaky`
+    (do predykcji; lista cech jest w `booster.feature_name()`).
     """
     params = {**config.LGBM_PARAMS, **(params or {})}
     cat_dtypes = categorical_dtypes(train)
-    X_tr, X_va = (model_matrix(d, horizon_h, cat_dtypes) for d in (train, val))
-    d_tr = lgb.Dataset(X_tr, train[config.TARGET], categorical_feature=list(cat_dtypes),
+    X_tr, X_va = (model_matrix(d, horizon_h, cat_dtypes, features, allow_leaky) for d in (train, val))
+    cats = [c for c in cat_dtypes if c in X_tr.columns]
+    d_tr = lgb.Dataset(X_tr, train[config.TARGET], categorical_feature=cats,
                        free_raw_data=False)
     d_va = lgb.Dataset(X_va, val[config.TARGET], reference=d_tr)
     booster = lgb.train(
@@ -62,12 +71,14 @@ def train_lgbm(train: pd.DataFrame, val: pd.DataFrame, horizon_h: int,
                    lgb.log_evaluation(period=200)],
     )
     booster.cat_dtypes = cat_dtypes
+    booster.allow_leaky = allow_leaky
     return booster
 
 
 def predict_lgbm(booster: lgb.Booster, df: pd.DataFrame, horizon_h: int) -> pd.Series:
     """Predykcja dla najlepszej iteracji (z val), indeks jak df."""
-    X = model_matrix(df, horizon_h, booster.cat_dtypes)
+    X = model_matrix(df, horizon_h, booster.cat_dtypes, booster.feature_name(),
+                     getattr(booster, "allow_leaky", False))
     return pd.Series(booster.predict(X, num_iteration=booster.best_iteration),
                      index=df.index, name="lgbm")
 
