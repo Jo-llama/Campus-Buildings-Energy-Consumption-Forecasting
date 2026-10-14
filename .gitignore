@@ -4,3 +4,7 @@ __pycache__/
 # Dane pośrednie (duże, odtwarzalne z kodu)
 data/processed/
 data/raw/
+
+# Trained models and prediction outputs (large, reproducible from code)
+models/
+results/**/*.parquet
