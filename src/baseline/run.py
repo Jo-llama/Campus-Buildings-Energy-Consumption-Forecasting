@@ -1,4 +1,4 @@
-"""CLI uczciwego baseline'u: python -m src.baseline.run --step <krok>."""
+"""Honest baseline CLI: python -m src.baseline.run --step <step>."""
 import argparse
 import json
 from typing import Dict
@@ -19,7 +19,7 @@ from src.baseline.split import coverage_by_meter, make_splits
 
 
 def step_resample() -> Dict:
-    """Krok 7.1: merged_data.csv -> hourly.parquet (+ events.parquet); zwraca raport."""
+    """Step 7.1: merged_data.csv -> hourly.parquet (+ events.parquet); returns a report."""
     df = load_merged()
     hourly, report = to_hourly(df, calendar=load_calendar())
     save_parquet(hourly, config.HOURLY_PARQUET)
@@ -38,7 +38,7 @@ def step_resample() -> Dict:
 
 
 def step_static() -> Dict:
-    """Krok 7.2: sprawdza brak cech wyciekających i raportuje cechy statyczne budynku."""
+    """Step 7.2: checks there are no leaking features and reports static building features."""
     hourly = pd.read_parquet(config.HOURLY_PARQUET)
     old = pd.read_csv(config.DATA_PROCESSED / "features_data_pca.csv", nrows=0).columns
     df, static_report = add_static_features(hourly)
@@ -55,7 +55,7 @@ def step_static() -> Dict:
 
 
 def step_features(horizon_h: int = config.HORIZON_H) -> Dict:
-    """Krok 7.3: hourly.parquet -> features_h{h}.parquet; raport braków i korelacji."""
+    """Step 7.3: hourly.parquet -> features_h{h}.parquet; missing-value and correlation report."""
     hourly = pd.read_parquet(config.HOURLY_PARQUET)
     f = build_features(hourly, horizon_h)
     path = config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h)
@@ -77,7 +77,7 @@ def step_features(horizon_h: int = config.HORIZON_H) -> Dict:
 
 
 def step_split(horizon_h: int = config.HORIZON_H) -> Dict:
-    """Krok 7.4: features_h{h}.parquet -> splits/{train,val,test}.parquet + manifest.json."""
+    """Step 7.4: features_h{h}.parquet -> splits/{train,val,test}.parquet + manifest.json."""
     f = pd.read_parquet(config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h))
     f.attrs["horizon_h"] = horizon_h
     splits = make_splits(f, config.TRAIN_END, config.VAL_END, config.GAP_DAYS)
@@ -93,17 +93,17 @@ def step_split(horizon_h: int = config.HORIZON_H) -> Dict:
     (config.SPLITS_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(json.dumps({k: v for k, v in manifest.items() if k != "rows_per_meter"}, indent=2))
     thin = cov[(cov["val"] < 500) | (cov["test"] < 500)]
-    print(f"Liczniki z < 500 wierszy w val lub test ({len(thin)}):")
+    print(f"Meters with < 500 rows in val or test ({len(thin)}):")
     print(thin.to_string())
     return manifest
 
 
 def step_train(horizon_h: int = config.HORIZON_H) -> Dict:
-    """Krok 7.5: splits -> naive + LightGBM; metryki val/test, predykcje, model, ważności."""
+    """Step 7.5: splits -> naive + LightGBM; val/test metrics, predictions, model, importances."""
     manifest = json.loads((config.SPLITS_DIR / "manifest.json").read_text(encoding="utf-8"))
     if manifest["horizon_h"] != horizon_h:
-        raise ValueError(f"Splity zbudowane dla h={manifest['horizon_h']}, a nie h={horizon_h} "
-                         f"- uruchom --step features/split --horizon {horizon_h}")
+        raise ValueError(f"Splits were built for h={manifest['horizon_h']}, not h={horizon_h} "
+                         f"- run --step features/split --horizon {horizon_h}")
     splits = {n: pd.read_parquet(config.SPLITS_DIR / f"{n}.parquet") for n in ("train", "val", "test")}
     booster = train_lgbm(splits["train"], splits["val"], horizon_h)
 
@@ -122,7 +122,7 @@ def step_train(horizon_h: int = config.HORIZON_H) -> Dict:
         pred = all_predictions(booster, splits[split], horizon_h)
         save_parquet(pred, config.RESULTS_DIR / f"predictions_{tag}_{split}.parquet")
         table = metrics_table(pred, names)
-        # Najlepszy naive wybierany na val i używany jako punkt odniesienia także na test
+        # The best naive is picked on val and used as the reference on test too
         if split == "val":
             best_naive["name"] = table.loc[list(naive_columns(horizon_h)), "mae"].idxmin()
         table["skill_mae_vs_best_naive"] = skill_vs(table, best_naive["name"])
@@ -133,20 +133,20 @@ def step_train(horizon_h: int = config.HORIZON_H) -> Dict:
         print(table.round(3).to_string())
     report["best_naive"] = best_naive["name"]
 
-    # Per licznik na test: ile liczników lgbm bije najlepszy naive
+    # Per meter on test: how many meters lgbm beats the best naive on
     wide = per_meter["test"].pivot(index="meter_id", columns="model", values="mae")
     beats = wide["lgbm"] < wide[best_naive["name"]]
     report["test_meters_lgbm_beats_best_naive"] = f"{int(beats.sum())}/{len(beats)}"
     report["test_meters_lgbm_worse"] = [int(m) for m in wide.index[~beats]]
     (config.RESULTS_DIR / f"metrics_{tag}.json").write_text(json.dumps(report, indent=2),
                                                            encoding="utf-8")
-    print(f"\nbest_iteration={booster.best_iteration}, najlepszy naive (val): {best_naive['name']}")
-    print(f"LightGBM lepszy od {best_naive['name']} na test w {report['test_meters_lgbm_beats_best_naive']} licznikach")
+    print(f"\nbest_iteration={booster.best_iteration}, best naive (val): {best_naive['name']}")
+    print(f"LightGBM better than {best_naive['name']} on test for {report['test_meters_lgbm_beats_best_naive']} meters")
     return report
 
 
 def step_compare_old(horizon_h: int = config.HORIZON_H) -> Dict:
-    """Krok 7.6: ablacja błędów starego pipeline'u + stare wyniki vs persistence 15 min."""
+    """Step 7.6: ablation of the old pipeline's flaws + old results vs 15-min persistence."""
     f = pd.read_parquet(config.DATA_PROCESSED / config.FEATURES_PARQUET_TMPL.format(h=horizon_h))
     results = run_ablation(f, horizon_h)
     table = ablation_table(results)
@@ -160,9 +160,9 @@ def step_compare_old(horizon_h: int = config.HORIZON_H) -> Dict:
     (config.RESULTS_DIR / f"compare_old_{tag}.json").write_text(json.dumps(report, indent=2),
                                                                encoding="utf-8")
     with pd.option_context("display.width", 200):
-        print("\n=== Ablacja (test, LightGBM vs naive_last na tych samych wierszach) ===")
+        print("\n=== Ablation (test, LightGBM vs naive_last on the same rows) ===")
         print(table.round(4).to_string())
-    print("\n=== Stary pipeline: raportowane metryki vs persistence 15 min na starym teście ===")
+    print("\n=== Old pipeline: reported metrics vs 15-min persistence on the old test set ===")
     print(json.dumps({k: v for k, v in old.items() if k != "reported"}, indent=2))
     for name, models in old["reported"].items():
         print(name)
@@ -175,11 +175,11 @@ STEPS = {"resample": step_resample, "static": step_static, "features": step_feat
 
 
 def main() -> None:
-    """Parsuje argumenty i uruchamia wybrany krok."""
+    """Parses arguments and runs the chosen step."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--step", required=True, choices=sorted(STEPS))
     parser.add_argument("--horizon", type=int, default=config.HORIZON_H,
-                        help="horyzont prognozy w godzinach (--step features/split/train/compare_old)")
+                        help="forecast horizon in hours (--step features/split/train/compare_old)")
     args = parser.parse_args()
     if args.step in ("features", "split", "train", "compare_old"):
         STEPS[args.step](args.horizon)

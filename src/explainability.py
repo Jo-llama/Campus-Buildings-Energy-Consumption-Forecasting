@@ -123,7 +123,7 @@ def model_comparison_before_after(benchmark_results, optimized_results, title="B
     print(f"\n   ✓ Best: {df_bench['RMSE'].idxmin()} (RMSE: {df_bench['RMSE'].min():.4f})")
 
     print("\n" + "-" * 70)
-    print("\n🟢 OPTIMIZED MODELS (05-optymalizacja.ipynb):")
+    print("\n🟢 OPTIMIZED MODELS (05-optimization.ipynb):")
     print(f"   Feature-selected + Optuna tuned")
     print(df_optim.to_string())
     print(f"\n   ✓ Best: {df_optim['RMSE'].idxmin()} (RMSE: {df_optim['RMSE'].min():.4f})")

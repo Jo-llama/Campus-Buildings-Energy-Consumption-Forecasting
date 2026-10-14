@@ -1,5 +1,5 @@
 """
-funkcje do pobierania i wczytywania danych.
+Functions for downloading and loading the data.
 """
 
 from .download_kaggle import download_unicon

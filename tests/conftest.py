@@ -1,4 +1,4 @@
-"""Wspólne fixtures: dane rzeczywiste (pomijane, gdy brak hourly.parquet)."""
+"""Shared fixtures: real data (skipped when hourly.parquet is missing)."""
 import pandas as pd
 import pytest
 
@@ -7,7 +7,7 @@ from src.baseline import config
 
 @pytest.fixture(scope="session")
 def hourly_real() -> pd.DataFrame:
-    """Pełny hourly.parquet z kroku 7.1."""
+    """Full hourly.parquet from step 7.1."""
     if not config.HOURLY_PARQUET.exists():
-        pytest.skip("Brak data/processed/hourly.parquet - uruchom --step resample")
+        pytest.skip("Missing data/processed/hourly.parquet - run --step resample")
     return pd.read_parquet(config.HOURLY_PARQUET)

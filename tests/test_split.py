@@ -1,4 +1,4 @@
-"""Testy kroku 7.4: przerwy między splitami, brak nakładania, oczekiwane liczniki."""
+"""Step 7.4 tests: gaps between splits, no overlap, expected meters."""
 from typing import Dict
 
 import numpy as np
@@ -13,7 +13,7 @@ GAP = pd.Timedelta(days=config.GAP_DAYS)
 
 
 def _check_gaps_and_keys(splits: Dict[str, pd.DataFrame]) -> None:
-    """Wspólne asercje: przerwa > gap między splitami, unikalne klucze, sort po czasie."""
+    """Shared assertions: gap > gap_days between splits, unique keys, sorted by time."""
     tr, va, te = splits["train"], splits["val"], splits["test"]
     assert tr["timestamp"].max() + GAP < va["timestamp"].min()
     assert va["timestamp"].max() + GAP < te["timestamp"].min()
@@ -25,7 +25,7 @@ def _check_gaps_and_keys(splits: Dict[str, pd.DataFrame]) -> None:
 
 
 def _features_toy() -> pd.DataFrame:
-    """3 liczniki, godzinowo 2021-03-01..2022-01-31, z brakami w targecie."""
+    """3 meters, hourly 2021-03-01..2022-01-31, with gaps in the target."""
     rng = np.random.default_rng(42)
     ts = pd.date_range("2021-03-01", "2022-01-31 23:00", freq="h")
     frames = []
@@ -57,11 +57,11 @@ def test_toy_splits_gaps_meters_and_dropped_rows():
     for s in splits.values():
         assert sorted(s["meter_id"].unique()) == [1, 2, 3]
         assert s[["lag_1h", "lag_24h", "lag_168h"]].notna().all().all()
-    # Dni przerwy nie występują w żadnym splicie
+    # Gap days do not appear in any split
     all_ts = pd.concat([s["timestamp"] for s in splits.values()])
     assert not all_ts.between("2021-05-01", "2021-05-07 23:00").any()
     assert not all_ts.between("2021-11-01", "2021-11-07 23:00").any()
-    # Usunięte są tylko wiersze z NaN w targecie/wymaganych lagach
+    # Only rows with NaN in the target/required lags are dropped
     for s in splits.values():
         r = s.attrs["report"]
         assert r["rows_window"] - r["rows_kept"] == r["rows_lost"] >= r["lost_target_nan"]
@@ -72,8 +72,8 @@ def test_real_splits_gaps_and_expected_meters(hourly_real):
     splits = make_splits(f, config.TRAIN_END, config.VAL_END, config.GAP_DAYS)
     _check_gaps_and_keys(splits)
     assert splits["train"]["meter_id"].nunique() == hourly_real["meter_id"].nunique()
-    # Oczekiwane liczniki liczone niezależnie z hourly: >= 200 h z targetem w oknie -> musi być
-    # w splicie; brak targetu w oknie -> nie może być
+    # Expected meters computed independently from hourly: >= 200 h with a target in the window -> must be
+    # in the split; no target in the window -> must not be
     for name, (start, stop) in split_bounds(config.TRAIN_END, config.VAL_END, config.GAP_DAYS).items():
         win = hourly_real[(hourly_real["timestamp"] >= start) & (hourly_real["timestamp"] < stop)]
         valid = win.dropna(subset=[config.TARGET]).groupby("meter_id").size()

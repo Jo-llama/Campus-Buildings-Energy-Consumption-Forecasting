@@ -1,4 +1,4 @@
-"""Testy kroku 7.6: odtworzenie wycieków starego pipeline'u, stary split, ablacja."""
+"""Step 7.6 tests: reproducing the old pipeline's leaks, the old split, the ablation."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +15,7 @@ FAST = {"learning_rate": 0.1, "num_leaves": 15, "min_data_in_leaf": 20}
 
 @pytest.fixture(scope="module")
 def toy_features():
-    """4 liczniki, profil dobowy + szum, okres obejmujący daty splitu z config."""
+    """4 meters, daily profile + noise, a period covering the split dates from config."""
     rng = np.random.default_rng(0)
     ts = pd.date_range("2021-02-01", "2022-01-31 23:00", freq="h")
     profile = 10 * np.sin(2 * np.pi * ts.hour / 24) + 5 * (ts.dayofweek < 5)
@@ -39,14 +39,14 @@ def test_leak_names_are_caught_by_guard():
 def test_ratio_and_rolling_leaks_contain_target(toy_features):
     f = add_old_leaky_features(toy_features)
     y = f[config.TARGET]
-    # Iloraz * stała budynku == target (wyciek dokładny)
+    # Ratio * building constant == target (exact leak)
     np.testing.assert_allclose(f["consumption_per_sqm"] * f["gross_floor_area"], y)
-    # Okno obejmuje bieżący wiersz: mean_3h(t) = (y_t + y_{t-1} + y_{t-2}) / 3
+    # The window includes the current row: mean_3h(t) = (y_t + y_{t-1} + y_{t-2}) / 3
     m1 = f[f["meter_id"] == 1].reset_index(drop=True)
     t = 100
     expected = m1[config.TARGET].iloc[t - 2:t + 1].mean()
     assert m1["consumption_rolling_mean_3h"].iloc[t] == pytest.approx(expected)
-    # Uczciwy roll_mean_3h kończy się w t-1 i nie zawiera y_t
+    # The honest roll_mean_3h ends at t-1 and does not contain y_t
     assert m1["roll_mean_3h"].iloc[t] == pytest.approx(m1[config.TARGET].iloc[t - 3:t].mean())
 
 
@@ -54,14 +54,14 @@ def test_old_positional_split_is_a_meter_split(toy_features):
     s = old_positional_split(toy_features, 1)
     n = sum(len(p) for p in s.values())
     assert len(s["test"]) == n - int(n * 0.8)
-    # Test = licznik(i) o najwyższym id, ten sam okres co train (brak separacji w czasie)
+    # Test = the meter(s) with the highest id, same period as train (no separation in time)
     assert s["test"]["meter_id"].min() >= s["train"]["meter_id"].max()
     assert s["test"]["timestamp"].min() < s["train"]["timestamp"].max()
 
 
 def test_leaky_features_rejected_without_opt_in(toy_features):
     s = old_positional_split(add_old_leaky_features(toy_features), 1)
-    with pytest.raises(ValueError, match="Zakazane"):
+    with pytest.raises(ValueError, match="Forbidden"):
         train_lgbm(s["train"], s["val"], 1, params=FAST, num_boost_round=5,
                    features=feature_columns(1) + LEAK_RATIO)
 
@@ -72,9 +72,9 @@ def test_ablation_leaks_inflate_skill(toy_features):
                        early_stopping=20)
     t = ablation_table(res)
     assert list(t.index) == list(variants)
-    # Wycieki dają skill bliski 1 (model odczytuje y_t), uczciwy wariant wyraźnie mniej
+    # Leaks give a skill close to 1 (the model reads y_t), the honest variant clearly less
     for leak in ("+ratio_leak", "+rolling_leak"):
         assert t.loc[leak, "skill_mae_vs_naive_last"] > t.loc["honest", "skill_mae_vs_naive_last"] + 0.2
-    # Warianty na tym samym splicie mają identyczne wiersze i ten sam naive
+    # Variants on the same split have identical rows and the same naive
     assert t.loc["honest", "n_test"] == t.loc["+ratio_leak", "n_test"]
     assert t.loc["honest", "naive_last_mae"] == t.loc["+ratio_leak", "naive_last_mae"]

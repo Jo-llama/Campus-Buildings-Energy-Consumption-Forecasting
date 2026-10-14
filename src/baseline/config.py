@@ -1,4 +1,4 @@
-"""Stałe konfiguracyjne uczciwego baseline'u (ścieżki, horyzont, daty splitu)."""
+"""Configuration constants for the honest baseline (paths, horizon, split dates)."""
 from pathlib import Path
 
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[2]
@@ -11,56 +11,56 @@ EVENTS_PARQUET: Path = DATA_PROCESSED / "events.parquet"
 
 SEED: int = 42
 
-# Odczyty są co 15 min; godzina wymaga kompletu 4 odczytów, inaczej target = NaN
+# Readings are every 15 min; an hour needs all 4 readings, otherwise target = NaN
 READINGS_PER_HOUR: int = 4
 RAW_FREQ: str = "15min"
 
 TARGET: str = "consumption"
 KEYS: list = ["meter_id", "timestamp"]
 
-# Kolumny statyczne (stałe w obrębie licznika) -> agregacja "first"
+# Static columns (constant within a meter) -> "first" aggregation
 STATIC_COLS: list = [
     "campus_id", "campus_id_building", "built_year", "category",
     "gross_floor_area", "room_area", "capacity", "name", "capacity_campus",
 ]
-# Pogoda -> średnia godzinowa (wind_direction osobno, średnia kołowa)
+# Weather -> hourly mean (wind_direction separately, circular mean)
 WEATHER_COLS: list = [
     "apparent_temperature", "air_temperature", "dew_point_temperature",
     "relative_humidity", "wind_speed",
 ]
 WIND_DIR_COL: str = "wind_direction"
-# Flagi kalendarzowe (per dzień) -> "first"
+# Calendar flags (per day) -> "first"
 CALENDAR_COLS: list = ["is_holiday", "is_semester", "is_exam"]
 
-# --- 7.3: cechy ---
-# Horyzont prognozy w godzinach. 1 = prognoza na następną godzinę.
-# 24 = wariant dobowy: zostają tylko lagi >= 24, a okna rolling kończą się w t-24.
+# --- 7.3: features ---
+# Forecast horizon in hours. 1 = forecast for the next hour.
+# 24 = day-ahead variant: only lags >= 24 remain, and rolling windows end at t-24.
 HORIZON_H: int = 1
 LAGS_H: list = [1, 2, 3, 24, 48, 168]
 ROLL_WINDOWS_H: list = [3, 6, 24, 168]
-# Bazowa temperatura stopniogodzin grzania/chłodzenia (°C)
+# Base temperature for heating/cooling degree-hours (°C)
 DEGREE_BASE_C: float = 18.0
-# Pogoda modelu (obserwowana w godzinie t = założenie idealnej prognozy pogody)
+# Model weather (observed at hour t = assumes a perfect weather forecast)
 WEATHER_FEATURES: list = ["air_temperature", "apparent_temperature", "relative_humidity", "wind_speed"]
 CATEGORICAL_FEATURES: list = ["meter_id", "category"]
 FEATURES_PARQUET_TMPL: str = "features_h{h}.parquet"
 
-# --- 7.4: split czasowy (jedyne źródło prawdy dla dat) ---
-# Daty końcowe są włączne (cały dzień); po każdej części przerwa GAP_DAYS dni jest usuwana.
+# --- 7.4: time split (single source of truth for dates) ---
+# End dates are inclusive (whole day); a GAP_DAYS-day gap after each part is dropped.
 TRAIN_END: str = "2021-04-30"
 VAL_END: str = "2021-10-31"
 GAP_DAYS: int = 7
 SPLITS_DIR: Path = DATA_PROCESSED / "splits"
-# Wiersz trafia do splitu tylko, gdy target i lagi potrzebne modelom/naive nie są NaN
-# (wszystkie modele oceniane na tych samych wierszach). {h} = horyzont.
+# A row enters a split only if the target and the lags needed by the models/naive are not NaN
+# (all models are scored on the same rows). {h} = horizon.
 REQUIRED_NONNULL_TMPL: list = ["consumption", "lag_{h}h", "lag_24h", "lag_168h"]
 
-# --- 7.5: modele bazowe (naive + LightGBM) ---
+# --- 7.5: baseline models (naive + LightGBM) ---
 MODELS_DIR: Path = PROJECT_ROOT / "models" / "baseline"
 RESULTS_DIR: Path = PROJECT_ROOT / "results" / "baseline"
-# Prognozy naiwne = kolumna lagu; {h} = horyzont (dla h=24 naive_last == naive_day -> pomijany)
+# Naive forecasts = a lag column; {h} = horizon (for h=24 naive_last == naive_day -> skipped)
 NAIVE_LAGS_TMPL: dict = {"naive_last": "lag_{h}h", "naive_day": "lag_24h", "naive_week": "lag_168h"}
-# Parametry stałe (bez strojenia) - strojenie dopiero po uczciwym baseline
+# Fixed parameters (no tuning) - tuning only after the honest baseline
 LGBM_PARAMS: dict = {
     "objective": "regression",
     "metric": ["l1", "l2"],
@@ -77,5 +77,5 @@ LGBM_PARAMS: dict = {
     "verbosity": -1,
 }
 LGBM_NUM_BOOST_ROUND: int = 5000
-# Early stopping wyłącznie na val (pierwsza metryka = l1); test nie bierze udziału w uczeniu
+# Early stopping on val only (first metric = l1); test takes no part in training
 LGBM_EARLY_STOPPING: int = 100

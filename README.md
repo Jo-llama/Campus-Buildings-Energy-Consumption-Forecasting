@@ -24,9 +24,9 @@ campus-energy-forecasting/
 │   ├── 02_data_processing.ipynb        # Data cleaning & preparation
 │   ├── 03_feature_engineering.ipynb    # Lag, rolling window, cyclical features
 │   ├── 04_modeling.ipynb               # Benchmark: Lasso, Ridge, GradientBoosting, RF
-│   ├── 05-optymalizacja.ipynb          # Feature selection + Optuna tuning (Lasso + XGBoost)
+│   ├── 05-optimization.ipynb           # Feature selection + Optuna tuning (Lasso + XGBoost)
 │   ├── 06_explainability.ipynb         # SHAP interpretation (XGBoost)
-│   └── 99_brudnopis.ipynb              # Scratch notebook for experimentation
+│   └── 99_scratchpad.ipynb             # Scratch notebook for experimentation
 │
 ├── src/
 │   ├── __init__.py
@@ -129,7 +129,7 @@ Gradient Boosting (sklearn): Strong tree ensemble baseline
 Metrics: RMSE, R², feature importance, learning curves
 Output: results/modeling_results.csv – Performance comparison table
 
-Stage 2: Feature Selection & Optimization (05-optymalizacja.ipynb)
+Stage 2: Feature Selection & Optimization (05-optimization.ipynb)
 Lasso Feature Selection (on X_train only):
 
 Train Lasso on training set with features_data_encoded.csv
@@ -202,7 +202,7 @@ Loads features_data_encoded.csv
 Trains multiple baseline models
 Outputs: results/modeling_results.csv with performance metrics
 4. Run Optimization & Feature Selection
-jupyter notebook notebooks/05-optymalizacja.ipynb
+jupyter notebook notebooks/05-optimization.ipynb
 Feature selection via Lasso
 Optuna tuning for Lasso & XGBoost
 Saves models to models/
@@ -217,7 +217,7 @@ Loads saved XGBoost model
 Generates SHAP plots (beeswarm, bar, waterfall)
 Interprets feature impact on predictions
 6. Experimentation (Optional)
-jupyter notebook notebooks/99_brudnopis.ipynb
+jupyter notebook notebooks/99_scratchpad.ipynb
 Scratch space for testing new ideas
 Key Files & Outputs
 Python Modules (src/)

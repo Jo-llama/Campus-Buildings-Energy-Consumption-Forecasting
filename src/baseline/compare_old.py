@@ -1,9 +1,9 @@
-"""Krok 7.6: porównanie starego pipeline'u z uczciwym baseline'em (ablacja błędów).
+"""Step 7.6: comparison of the old pipeline with the honest baseline (flaw ablation).
 
-Stare wyniki (results/modeling_results*.csv) nie są porównywalne wprost: dane 15-min
-(kWh/15 min), inne wiersze (dropna usunęło liczniki i okres po 2021-06), inne zadanie.
-Dlatego każdy błąd starego pipeline'u jest odtwarzany na danych godzinowych osobno,
-a każdy wariant oceniany jest razem z naive_last na tych samych wierszach (skill).
+The old results (results/modeling_results*.csv) are not directly comparable: 15-min data
+(kWh/15 min), different rows (dropna removed meters and the period after 2021-06), a different task.
+So each flaw of the old pipeline is reproduced separately on hourly data,
+and each variant is scored together with naive_last on the same rows (skill).
 """
 from typing import Dict, List, Tuple
 
@@ -15,14 +15,14 @@ from src.baseline.metrics import regression_metrics
 from src.baseline.models import predict_lgbm, train_lgbm
 from src.baseline.split import make_splits, required_columns
 
-# Nazwy jak w starym pipeline (łapie je strażnik z leakage.py).
-# Stare create_building_features: target / stała budynku -> target odtwarzalny wprost
+# Names as in the old pipeline (caught by the guard in leakage.py).
+# Old create_building_features: target / building constant -> target directly recoverable
 LEAK_RATIO: List[str] = ["consumption_per_sqm", "consumption_per_person"]
-# Stare create_rolling_features: okno obejmuje bieżący wiersz (y_t), min_periods=1
+# Old create_rolling_features: the window includes the current row (y_t), min_periods=1
 OLD_ROLL_WINDOWS: List[int] = [3, 6, 24]
 LEAK_ROLL: List[str] = [f"consumption_rolling_{s}_{w}h" for w in OLD_ROLL_WINDOWS for s in ("mean", "std")]
 
-# Warianty ablacji: nazwa -> (dodatkowe cechy, schemat splitu)
+# Ablation variants: name -> (extra features, split scheme)
 VARIANTS: Dict[str, Tuple[List[str], str]] = {
     "honest": ([], "time"),
     "+ratio_leak": (LEAK_RATIO, "time"),
@@ -34,11 +34,11 @@ VARIANTS: Dict[str, Tuple[List[str], str]] = {
 
 
 def add_old_leaky_features(f: pd.DataFrame) -> pd.DataFrame:
-    """Dodaje cechy wyciekające jak w starym feature_engineering.py (na siatce godzinowej).
+    """Adds leaking features as in the old feature_engineering.py (on the hourly grid).
 
-    Wejście: features_h{h}.parquet przed splitem (kompletna siatka per licznik).
-    Zaślepki 0 w powierzchni/pojemności są już NaN (7.2), więc iloraz jest NaN jak w starym
-    kodzie (replace(0, NA)).
+    Input: features_h{h}.parquet before the split (complete grid per meter).
+    Placeholder zeros in floor area/capacity are already NaN (7.2), so the ratio is NaN as in the old
+    code (replace(0, NA)).
     """
     f = f.sort_values(config.KEYS, kind="mergesort").copy()
     y = f[config.TARGET]
@@ -53,11 +53,11 @@ def add_old_leaky_features(f: pd.DataFrame) -> pd.DataFrame:
 
 def old_positional_split(f: pd.DataFrame, horizon_h: int, test_size: float = 0.2,
                          val_size: float = 0.1) -> Dict[str, pd.DataFrame]:
-    """Stary split: iloc 80/20 na wierszach posortowanych po (meter_id, timestamp).
+    """Old split: iloc 80/20 on rows sorted by (meter_id, timestamp).
 
-    W praktyce to split po licznikach (test = liczniki o najwyższych id, ten sam okres
-    co train). Val (do early stopping) = ostatnie val_size wierszy części treningowej.
-    Te same wymagane kolumny co w 7.4, żeby naive_last był zdefiniowany.
+    In practice it is a split by meter (test = meters with the highest ids, the same period
+    as train). Val (for early stopping) = the last val_size rows of the training part.
+    Same required columns as in 7.4, so that naive_last is defined.
     """
     df = (f.dropna(subset=required_columns(horizon_h))
           .sort_values(["meter_id", "timestamp"], kind="mergesort").reset_index(drop=True))
@@ -69,7 +69,7 @@ def old_positional_split(f: pd.DataFrame, horizon_h: int, test_size: float = 0.2
 
 
 def time_split(f: pd.DataFrame, horizon_h: int) -> Dict[str, pd.DataFrame]:
-    """Uczciwy split 7.4 (daty z config, przerwy GAP_DAYS)."""
+    """Honest 7.4 split (dates from config, GAP_DAYS gaps)."""
     f = f.copy()
     f.attrs["horizon_h"] = horizon_h
     return make_splits(f, config.TRAIN_END, config.VAL_END, config.GAP_DAYS)
@@ -77,7 +77,7 @@ def time_split(f: pd.DataFrame, horizon_h: int) -> Dict[str, pd.DataFrame]:
 
 def evaluate_variant(splits: Dict[str, pd.DataFrame], horizon_h: int, extra: List[str],
                      **train_kwargs) -> Dict:
-    """Uczy LightGBM z cechami honest + extra; metryki test razem z naive_last na tych wierszach."""
+    """Trains LightGBM with honest + extra features; test metrics together with naive_last on those rows."""
     feats = feature_columns(horizon_h) + extra
     booster = train_lgbm(splits["train"], splits["val"], horizon_h, features=feats,
                          allow_leaky=bool(extra), **train_kwargs)
@@ -102,7 +102,7 @@ def evaluate_variant(splits: Dict[str, pd.DataFrame], horizon_h: int, extra: Lis
 
 def run_ablation(f: pd.DataFrame, horizon_h: int, variants: Dict = VARIANTS,
                  **train_kwargs) -> Dict[str, Dict]:
-    """Uruchamia wszystkie warianty ablacji na cechach z add_old_leaky_features."""
+    """Runs all ablation variants on the features from add_old_leaky_features."""
     leaky = add_old_leaky_features(f)
     split_fns = {"time": time_split, "old": old_positional_split}
     cache: Dict[str, Dict[str, pd.DataFrame]] = {}
@@ -110,14 +110,14 @@ def run_ablation(f: pd.DataFrame, horizon_h: int, variants: Dict = VARIANTS,
     for name, (extra, scheme) in variants.items():
         if scheme not in cache:
             cache[scheme] = split_fns[scheme](leaky, horizon_h)
-        print(f"--- wariant {name} ({scheme} split, +{len(extra)} cech) ---")
+        print(f"--- variant {name} ({scheme} split, +{len(extra)} features) ---")
         out[name] = {"split": scheme, "extra_features": extra,
                      **evaluate_variant(cache[scheme], horizon_h, extra, **train_kwargs)}
     return out
 
 
 def ablation_table(results: Dict[str, Dict]) -> pd.DataFrame:
-    """Tabela: wiersz = wariant; MAE/R2 modelu, MAE naive_last na tych samych wierszach, skill."""
+    """Table: row = variant; model MAE/R2, naive_last MAE on the same rows, skill."""
     rows = {name: {
         "split": r["split"],
         "n_test": r["lgbm"]["n"],
@@ -132,10 +132,10 @@ def ablation_table(results: Dict[str, Dict]) -> pd.DataFrame:
 
 
 def old_reported_vs_persistence(results_csvs: List, features_csv, test_size: float = 0.2) -> Dict:
-    """Stare raportowane metryki vs persistence (lag 1 wiersza = 15 min) na starym teście.
+    """Old reported metrics vs persistence (1-row lag = 15 min) on the old test set.
 
-    Stary test = ostatnie 20% wierszy features_data.csv (kolejność jak features_data_encoded,
-    sort po meter_id). consumption_lag_1h w starym pliku to w praktyce lag 15 min.
+    Old test = the last 20% of rows of features_data.csv (same order as features_data_encoded,
+    sorted by meter_id). consumption_lag_1h in the old file is in practice a 15-min lag.
     """
     f = pd.read_csv(features_csv, usecols=["meter_id", "timestamp", "consumption",
                                            "consumption_lag_1h"], parse_dates=["timestamp"])

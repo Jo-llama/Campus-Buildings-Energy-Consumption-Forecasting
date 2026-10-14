@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 
-# Dane pośrednie (duże, odtwarzalne z kodu)
+# Intermediate data (large, reproducible from code)
 data/processed/
 data/raw/
 

@@ -1,4 +1,4 @@
-"""Testy gwarancji braku wycieku targetu (7.2; rozszerzane w 7.3)."""
+"""Tests guaranteeing no target leakage (7.2; extended in 7.3)."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,7 +24,7 @@ def test_guard_accepts_honest_features():
 
 
 def _static_toy() -> pd.DataFrame:
-    """Dwa liczniki po 3 godziny: jeden z zaślepkami (0, 1899), drugi z brakami."""
+    """Two meters with 3 hours each: one with placeholders (0, 1899), the other with missing values."""
     return pd.DataFrame({
         "meter_id": [1, 1, 1, 2, 2, 2],
         "consumption": [1.0, np.nan, 3.0, 4.0, 5.0, 6.0],
@@ -38,7 +38,7 @@ def _static_toy() -> pd.DataFrame:
 
 def test_static_features_keep_rows_and_flag_missing():
     df, rep = add_static_features(_static_toy())
-    assert len(df) == 6                                     # brak dropna
+    assert len(df) == 6                                     # no dropna
     assert df.loc[df.meter_id == 1, "gross_floor_area"].isna().all()
     assert df["gross_floor_area_missing"].tolist() == [1, 1, 1, 0, 0, 0]
     assert df["capacity_missing"].tolist() == [1] * 6
@@ -49,19 +49,19 @@ def test_static_features_keep_rows_and_flag_missing():
 def test_static_features_do_not_depend_on_target():
     base, _ = add_static_features(_static_toy())
     toy = _static_toy()
-    toy["consumption"] = toy["consumption"] * 100 + 7      # zmiana targetu
+    toy["consumption"] = toy["consumption"] * 100 + 7      # change the target
     changed, _ = add_static_features(toy)
     cols = [c for c in base.columns if c != "consumption"]
     pd.testing.assert_frame_equal(base[cols], changed[cols])
 
 
-# --- 7.3: cechy tylko z przeszłości ---
+# --- 7.3: past-only features ---
 
 from src.baseline.features import build_features, feature_columns  # noqa: E402
 
 
 def _hourly_toy(n_hours: int = 400, seed: int = 42) -> pd.DataFrame:
-    """Dwa liczniki na kompletnej siatce godzinowej, z losowymi brakami w targecie."""
+    """Two meters on a complete hourly grid, with random gaps in the target."""
     rng = np.random.default_rng(seed)
     frames = []
     for m, cat in [(1, "teaching"), (2, "office")]:
@@ -82,7 +82,7 @@ def _hourly_toy(n_hours: int = 400, seed: int = 42) -> pd.DataFrame:
 
 def _assert_past_unchanged(hourly: pd.DataFrame, meter: int, t: pd.Timestamp,
                            new_value: float, horizon_h: int) -> None:
-    """Zmienia target (meter, t) i sprawdza, że cechy w godzinach < t + horizon_h się nie zmieniły."""
+    """Changes the target at (meter, t) and checks that features at hours < t + horizon_h did not change."""
     feats = feature_columns(horizon_h)
     base = build_features(hourly, horizon_h)
     pert = hourly.copy()
@@ -91,10 +91,10 @@ def _assert_past_unchanged(hourly: pd.DataFrame, meter: int, t: pd.Timestamp,
     pert.loc[hit, "consumption"] = new_value
     changed = build_features(pert, horizon_h)
 
-    # Ten sam licznik: wszystkie cechy do t + horizon_h - 1 włącznie bez zmian (dla h=1: <= t)
+    # Same meter: all features up to and including t + horizon_h - 1 unchanged (for h=1: <= t)
     safe = (base["meter_id"] != meter) | (base["timestamp"] < t + pd.Timedelta(hours=horizon_h))
     pd.testing.assert_frame_equal(base.loc[safe, feats], changed.loc[safe, feats])
-    # Kontrola, że test nie jest pusty: lag = horizon w t + horizon musi się zmienić
+    # Check the test is not vacuous: the lag = horizon at t + horizon must change
     nxt = (base["meter_id"] == meter) & (base["timestamp"] == t + pd.Timedelta(hours=horizon_h))
     if nxt.any():
         a = base.loc[nxt, f"lag_{horizon_h}h"].iloc[0]
@@ -108,7 +108,7 @@ def _assert_past_unchanged(hourly: pd.DataFrame, meter: int, t: pd.Timestamp,
 def test_perturbing_target_does_not_change_past_features_toy(horizon_h, hour_idx, new_value):
     hourly = _hourly_toy()
     hourly.loc[(hourly.meter_id == 1), "consumption"] = (
-        hourly.loc[(hourly.meter_id == 1), "consumption"].fillna(1.0))  # t ma wartość do zmiany
+        hourly.loc[(hourly.meter_id == 1), "consumption"].fillna(1.0))  # t has a value to change
     t = pd.Timestamp("2021-01-01") + pd.Timedelta(hours=hour_idx)
     _assert_past_unchanged(hourly, meter=1, t=t, new_value=new_value, horizon_h=horizon_h)
 
@@ -127,7 +127,7 @@ def test_no_feature_near_perfect_spearman_with_target(hourly_real):
     s = f.dropna(subset=["consumption"]).sample(300_000, random_state=42)
     num = [c for c in feature_columns(1) if c != "category"]
     rho = s[num].corrwith(s["consumption"], method="spearman").abs()
-    assert rho.notna().all(), f"Stałe cechy: {rho[rho.isna()].index.tolist()}"
+    assert rho.notna().all(), f"Constant features: {rho[rho.isna()].index.tolist()}"
     assert (rho <= 0.99).all(), rho[rho > 0.99].to_dict()
 
 

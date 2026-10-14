@@ -1,4 +1,4 @@
-"""Testy kroku 7.5: metryki, prognozy naiwne, LightGBM (tylko train/val, predykcje po kluczu)."""
+"""Step 7.5 tests: metrics, naive forecasts, LightGBM (train/val only, predictions by key)."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +15,7 @@ FAST = {"learning_rate": 0.1, "num_leaves": 15, "min_data_in_leaf": 20}
 
 @pytest.fixture(scope="module")
 def toy_splits():
-    """3 liczniki z profilem dobowym + szum; split jak w 7.4 (train/val/test)."""
+    """3 meters with a daily profile + noise; split as in 7.4 (train/val/test)."""
     rng = np.random.default_rng(0)
     ts = pd.date_range("2021-01-01", "2022-01-31 23:00", freq="h")
     profile = 10 * np.sin(2 * np.pi * ts.hour / 24) + 5 * (ts.dayofweek < 5)
@@ -58,7 +58,7 @@ def test_skill_and_per_meter():
     df = pd.DataFrame({"meter_id": [1, 1, 2, 2], config.TARGET: [1.0, 3.0, 10.0, 20.0],
                        "a": [1.0, 3.0, 10.0, 20.0], "b": [2.0, 2.0, 12.0, 18.0]})
     t = metrics_table(df, ["a", "b"])
-    assert skill_vs(t, "b")["a"] == pytest.approx(1.0)   # idealny model
+    assert skill_vs(t, "b")["a"] == pytest.approx(1.0)   # perfect model
     assert skill_vs(t, "b")["b"] == pytest.approx(0.0)
     pm = per_meter_metrics(df, ["a", "b"]).set_index(["meter_id", "model"])
     assert pm.loc[(1, "b"), "mae"] == pytest.approx(1.0)
@@ -74,7 +74,7 @@ def test_categories_come_from_train_only(toy_splits):
     tr = toy_splits["train"]
     dtypes = categorical_dtypes(tr)
     other = toy_splits["test"].copy()
-    other["meter_id"] = 99                       # licznik nieznany w train
+    other["meter_id"] = 99                       # meter unseen in train
     X = model_matrix(other, 1, dtypes)
     assert X["meter_id"].isna().all()
     assert list(X["meter_id"].cat.categories) == [1, 2, 3]
@@ -87,7 +87,7 @@ def test_predictions_same_rows_keyed_and_finite(toy_splits, toy_booster):
     assert list(pred.columns) == config.KEYS + [config.TARGET] + model_names(1)
     assert len(pred) == len(te)
     assert pred[model_names(1)].notna().all().all()
-    # Naive = dokładnie kolumna lagu; target bez zmian
+    # Naive = exactly the lag column; target unchanged
     assert (pred["naive_day"] == te["lag_24h"]).all()
     assert (pred[config.TARGET] == te[config.TARGET]).all()
 
@@ -105,6 +105,6 @@ def test_early_stopping_uses_val_and_lgbm_beats_naive(toy_splits, toy_booster):
     assert set(toy_booster.best_score) == {"val"}
     pred = all_predictions(toy_booster, toy_splits["test"], 1)
     t = metrics_table(pred, model_names(1))
-    # Profil dobowy + szum iid: model uczy się średniej, naive powiela szum sprzed doby
+    # Daily profile + iid noise: the model learns the mean, naive repeats the noise from a day earlier
     assert t.loc["lgbm", "mae"] < t.loc[["naive_last", "naive_day", "naive_week"], "mae"].min()
 

@@ -1,4 +1,4 @@
-"""Budowa cech uczciwego baseline'u (7.2: cechy statyczne, 7.3: cechy tylko z przeszłości)."""
+"""Feature building for the honest baseline (7.2: static features, 7.3: past-only features)."""
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -7,24 +7,24 @@ import pandas as pd
 from src.baseline import config
 from src.baseline.leakage import assert_no_forbidden
 
-# Cechy statyczne budynku/kampusu - metadane, nie pochodne targetu
+# Static building/campus features - metadata, not derived from the target
 STATIC_NUMERIC: list = ["gross_floor_area", "room_area", "capacity", "built_year", "capacity_campus"]
-# Flagi braków tylko tam, gdzie braki występują (capacity_campus jest zawsze znane)
+# Missing flags only where values can be missing (capacity_campus is always known)
 MISSING_FLAG_COLS: list = ["gross_floor_area", "room_area", "capacity", "built_year"]
-# Wartości-zaślepki w building_meta oznaczające "brak danych"
+# Placeholder values in building_meta that mean "no data"
 PLACEHOLDER_AS_MISSING: Dict[str, list] = {
-    "gross_floor_area": [0],   # powierzchnia 0 m2 jest fizycznie niemożliwa
+    "gross_floor_area": [0],   # a floor area of 0 m2 is physically impossible
     "capacity": [0],
-    "built_year": [1899],      # rok-zaślepka powtarzający się w wielu budynkach
+    "built_year": [1899],      # placeholder year repeated across many buildings
 }
 
 
 def add_static_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Dict[str, int]]]:
-    """Dodaje statyczne cechy budynku z flagami braków, bez usuwania wierszy.
+    """Adds static building features with missing flags, without dropping rows.
 
-    Zaślepki (0, 1899) -> NaN; dla kolumn z MISSING_FLAG_COLS flaga `<col>_missing` (int8).
-    NaN zostaje w kolumnie (LightGBM obsługuje braki natywnie, bez imputacji przed splitem).
-    Zwraca (df, raport: liczba liczników z zaślepką / z brakiem per kolumna).
+    Placeholders (0, 1899) -> NaN; columns in MISSING_FLAG_COLS get a `<col>_missing` flag (int8).
+    NaN stays in the column (LightGBM handles missing values natively, no imputation before the split).
+    Returns (df, report: number of meters with a placeholder / missing value per column).
     """
     df = df.copy()
     report: Dict[str, Dict[str, int]] = {}
@@ -43,37 +43,37 @@ def add_static_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Dict[
     return df, report
 
 
-# --- 7.3: cechy wyłącznie z przeszłości ---
+# --- 7.3: past-only features ---
 
 def lags_for_horizon(horizon_h: int) -> List[int]:
-    """Zwraca lagi dozwolone dla horyzontu: tylko >= horizon_h (plus sam horyzont)."""
+    """Returns the lags allowed for the horizon: only >= horizon_h (plus the horizon itself)."""
     lags = sorted({lag for lag in config.LAGS_H if lag >= horizon_h} | {horizon_h})
     return lags
 
 
 def _check_complete_grid(df: pd.DataFrame) -> None:
-    """Sprawdza, że w obrębie licznika kolejne wiersze dzieli dokładnie 1 godzina."""
+    """Checks that consecutive rows within a meter are exactly 1 hour apart."""
     step = df.groupby("meter_id", sort=False)["timestamp"].diff().dropna()
     if not (step == pd.Timedelta(hours=1)).all():
-        raise ValueError("Dane nie leżą na kompletnej siatce godzinowej - shift(1) != 1h")
+        raise ValueError("Data is not on a complete hourly grid - shift(1) != 1h")
 
 
 def _target_history_features(df: pd.DataFrame, horizon_h: int) -> pd.DataFrame:
-    """Lagi i rolling mean/std liczone per licznik z serii przesuniętej o horizon_h."""
+    """Lags and rolling mean/std computed per meter from the series shifted by horizon_h."""
     g = df.groupby("meter_id", sort=False)[config.TARGET]
     out = {f"lag_{lag}h": g.shift(lag) for lag in lags_for_horizon(horizon_h)}
-    # Okno kończy się w t - horizon_h (dla h=1: w t-1), nigdy nie obejmuje t
+    # The window ends at t - horizon_h (for h=1: at t-1), never includes t
     past = g.shift(horizon_h)
     past_g = past.groupby(df["meter_id"], sort=False)
     for w in config.ROLL_WINDOWS_H:
-        mp = max(2, w // 2)  # min. połowa okna obserwowana, inaczej NaN
+        mp = max(2, w // 2)  # at least half the window observed, otherwise NaN
         out[f"roll_mean_{w}h"] = past_g.transform(lambda s: s.rolling(w, min_periods=mp).mean())
         out[f"roll_std_{w}h"] = past_g.transform(lambda s: s.rolling(w, min_periods=mp).std())
     return pd.DataFrame(out, index=df.index)
 
 
 def _calendar_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Cechy kalendarzowe godziny t (znane z wyprzedzeniem) + kodowanie sin/cos."""
+    """Calendar features of hour t (known in advance) + sin/cos encoding."""
     ts = df["timestamp"]
     out = pd.DataFrame({
         "hour": ts.dt.hour.astype("int8"),
@@ -81,7 +81,7 @@ def _calendar_features(df: pd.DataFrame) -> pd.DataFrame:
         "month": ts.dt.month.astype("int8"),
     }, index=df.index)
     out["is_weekend"] = (out["day_of_week"] >= 5).astype("int8")
-    # Kodowanie cykliczne jak w create_time_features
+    # Cyclic encoding as in create_time_features
     out["hour_sin"] = np.sin(2 * np.pi * out["hour"] / 24)
     out["hour_cos"] = np.cos(2 * np.pi * out["hour"] / 24)
     out["month_sin"] = np.sin(2 * np.pi * out["month"] / 12)
@@ -94,7 +94,7 @@ def _calendar_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _weather_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Pogoda w godzinie t + stopniogodziny grzania/chłodzenia (baza 18 °C)."""
+    """Weather at hour t + heating/cooling degree-hours (base 18 °C)."""
     out = df[config.WEATHER_FEATURES].copy()
     t = df["air_temperature"]
     out["heating_degree_h"] = (config.DEGREE_BASE_C - t).clip(lower=0)
@@ -103,11 +103,11 @@ def _weather_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_features(df_hourly: pd.DataFrame, horizon_h: int = config.HORIZON_H) -> pd.DataFrame:
-    """Buduje cechy tylko z przeszłości dla prognozy na horizon_h godzin do przodu.
+    """Builds past-only features for a forecast horizon_h hours ahead.
 
-    Wejście: hourly.parquet (kompletna siatka per licznik). Wyjście: klucze
-    (meter_id, timestamp), target `consumption` i cechy z `feature_columns(horizon_h)`.
-    Nie usuwa wierszy - NaN w lagach obsługuje split (7.4).
+    Input: hourly.parquet (complete grid per meter). Output: keys
+    (meter_id, timestamp), the `consumption` target and the features from `feature_columns(horizon_h)`.
+    Does not drop rows - NaN in lags is handled by the split (7.4).
     """
     df = df_hourly.sort_values(config.KEYS, kind="mergesort").reset_index(drop=True)
     _check_complete_grid(df)
@@ -125,13 +125,13 @@ def build_features(df_hourly: pd.DataFrame, horizon_h: int = config.HORIZON_H) -
     feats = feature_columns(horizon_h)
     missing = [c for c in feats if c not in out.columns]
     if missing:
-        raise ValueError(f"Brak cech w wyniku: {missing}")
+        raise ValueError(f"Features missing from the output: {missing}")
     assert_no_forbidden(feats)
     return out
 
 
 def feature_columns(horizon_h: int = config.HORIZON_H) -> List[str]:
-    """Lista cech modelu (meter_id i category jako kategoryczne LightGBM)."""
+    """Model feature list (meter_id and category as LightGBM categoricals)."""
     static = STATIC_NUMERIC + [f"{c}_missing" for c in MISSING_FLAG_COLS]
     calendar = ["hour", "day_of_week", "month", "is_weekend", "hour_sin", "hour_cos",
                 "month_sin", "month_cos", "day_sin", "day_cos"] + config.CALENDAR_COLS
