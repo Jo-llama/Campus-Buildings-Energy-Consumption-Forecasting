@@ -1,0 +1,92 @@
+{
+  "horizon_h": 24,
+  "best_iteration": 196,
+  "naive_columns": {
+    "naive_last": "lag_24h",
+    "naive_week": "lag_168h"
+  },
+  "params": {
+    "objective": "regression",
+    "metric": [
+      "l1",
+      "l2"
+    ],
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "lambda_l2": 1.0,
+    "seed": 42,
+    "deterministic": true,
+    "force_row_wise": true,
+    "verbosity": -1
+  },
+  "metrics": {
+    "val": {
+      "naive_last": {
+        "n": 206086,
+        "mae": 4.9819,
+        "rmse": 11.0035,
+        "wape_pct": 11.1093,
+        "r2": 0.9424,
+        "bias": -0.0259,
+        "skill_mae_vs_best_naive": -0.0017
+      },
+      "naive_week": {
+        "n": 206086,
+        "mae": 4.9733,
+        "rmse": 10.6875,
+        "wape_pct": 11.0901,
+        "r2": 0.9456,
+        "bias": 0.1996,
+        "skill_mae_vs_best_naive": 0.0
+      },
+      "lgbm": {
+        "n": 206086,
+        "mae": 3.9013,
+        "rmse": 7.9828,
+        "wape_pct": 8.6997,
+        "r2": 0.9697,
+        "bias": 0.2102,
+        "skill_mae_vs_best_naive": 0.2155
+      }
+    },
+    "test": {
+      "naive_last": {
+        "n": 176438,
+        "mae": 6.0547,
+        "rmse": 13.7015,
+        "wape_pct": 12.7056,
+        "r2": 0.925,
+        "bias": -0.0417,
+        "skill_mae_vs_best_naive": 0.1508
+      },
+      "naive_week": {
+        "n": 176438,
+        "mae": 7.1295,
+        "rmse": 14.9549,
+        "wape_pct": 14.9611,
+        "r2": 0.9107,
+        "bias": 0.0157,
+        "skill_mae_vs_best_naive": 0.0
+      },
+      "lgbm": {
+        "n": 176438,
+        "mae": 5.0121,
+        "rmse": 10.1191,
+        "wape_pct": 10.5177,
+        "r2": 0.9591,
+        "bias": 0.7512,
+        "skill_mae_vs_best_naive": 0.297
+      }
+    }
+  },
+  "best_naive": "naive_week",
+  "test_meters_lgbm_beats_best_naive": "51/53",
+  "test_meters_lgbm_worse": [
+    9,
+    32
+  ]
+}
