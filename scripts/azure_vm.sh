@@ -25,13 +25,20 @@ VM_SIZE="${VM_SIZE:-Standard_E4s_v5}"
 DISK_CTRL="${DISK_CTRL:-SCSI}"
 ADMIN="${ADMIN:-azureuser}"
 HORIZONS="${HORIZONS:-1 24}"
+SHUTDOWN_UTC="${SHUTDOWN_UTC:-0500}"
 # Spot VMs cost much less but can be evicted; set SPOT=1 to use one.
 SPOT="${SPOT:-0}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-ip() { az vm show -d -g "$RG" -n "$VM" --query publicIps -o tsv; }
-remote() { ssh -o StrictHostKeyChecking=accept-new "$ADMIN@$(ip)" "$@"; }
+# Sets $HOST once per run (`az vm show -d` is slow and occasionally fails transiently)
+resolve_host() {
+  local ip
+  ip="$(az vm show -d -g "$RG" -n "$VM" --query publicIps -o tsv | tr -d '\r')"
+  [[ -n "$ip" ]] || { echo "Could not get the VM's public IP - is it running? ($0 start)" >&2; exit 1; }
+  HOST="$ADMIN@$ip"
+}
+remote() { ssh -o StrictHostKeyChecking=accept-new "$HOST" "$@"; }
 
 case "${1:-}" in
   create)
@@ -44,29 +51,33 @@ case "${1:-}" in
       --os-disk-size-gb 64 --public-ip-sku Standard \
       --disk-controller-type "$DISK_CTRL" \
       "${spot_args[@]}" -o table
-    # Safety net: shut down every night at 23:00 UTC in case you forget `stop`.
-    az vm auto-shutdown -g "$RG" -n "$VM" --time 2300 -o none
-    vm_ip="$(ip)"
-    [[ -n "$vm_ip" ]] || { echo "VM has no public IP - creation failed?" >&2; exit 1; }
-    echo "VM ready at $vm_ip. Next: $0 train"
+    # Safety net in case you forget `stop`: daily shutdown at SHUTDOWN_UTC (HHMM).
+    # Make sure it doesn't fall in the middle of a training run.
+    az vm auto-shutdown -g "$RG" -n "$VM" --time "$SHUTDOWN_UTC" -o none
+    resolve_host
+    echo "VM ready at ${HOST#*@}. Next: $0 train"
     ;;
   train)
-    scp -o StrictHostKeyChecking=accept-new "$ROOT/scripts/vm_train.sh" "$ADMIN@$(ip):~/vm_train.sh"
+    resolve_host
+    scp -o StrictHostKeyChecking=accept-new "$ROOT/scripts/vm_train.sh" "$HOST:~/vm_train.sh"
     # Pass Kaggle credentials through if set locally (needed only if the download asks for them)
     remote "KAGGLE_USERNAME='${KAGGLE_USERNAME:-}' KAGGLE_KEY='${KAGGLE_KEY:-}' HORIZONS='$HORIZONS' \
             nohup bash ~/vm_train.sh > ~/train.log 2>&1 < /dev/null &"
     echo "Training started. Follow it with: $0 logs"
     ;;
   logs)
+    resolve_host
     remote "tail -n 50 -f ~/train.log"
     ;;
   fetch)
     dest="$ROOT/azure_out"
     mkdir -p "$dest"
-    scp -r "$ADMIN@$(ip):~/project/results" "$ADMIN@$(ip):~/project/models" "$ADMIN@$(ip):~/train.log" "$dest/"
+    resolve_host
+    scp -r "$HOST:~/project/results" "$HOST:~/project/models" "$HOST:~/train.log" "$dest/"
     echo "Copied to $dest"
     ;;
   ssh)
+    resolve_host
     remote
     ;;
   stop)

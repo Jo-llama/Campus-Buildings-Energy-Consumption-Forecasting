@@ -13,6 +13,8 @@ DIR="$HOME/project"
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 
 log "Installing system packages"
+# Finish any install cut off by a shutdown, otherwise apt refuses to run
+sudo dpkg --configure -a
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git python3-venv python3-pip libgomp1
 

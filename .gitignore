@@ -8,3 +8,6 @@ data/raw/
 # Trained models and prediction outputs (large, reproducible from code)
 models/
 results/**/*.parquet
+
+# Outputs fetched from the Azure VM (scripts/azure_vm.sh fetch)
+azure_out/
