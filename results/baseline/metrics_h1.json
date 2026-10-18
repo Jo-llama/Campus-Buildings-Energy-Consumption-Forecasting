@@ -1,0 +1,113 @@
+{
+  "horizon_h": 1,
+  "best_iteration": 3755,
+  "naive_columns": {
+    "naive_last": "lag_1h",
+    "naive_day": "lag_24h",
+    "naive_week": "lag_168h"
+  },
+  "params": {
+    "objective": "regression",
+    "metric": [
+      "l1",
+      "l2"
+    ],
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_data_in_leaf": 200,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "lambda_l2": 1.0,
+    "seed": 42,
+    "deterministic": true,
+    "force_row_wise": true,
+    "verbosity": -1
+  },
+  "metrics": {
+    "val": {
+      "naive_last": {
+        "n": 203665,
+        "mae": 3.5985,
+        "rmse": 8.4517,
+        "wape_pct": 8.0276,
+        "r2": 0.966,
+        "bias": -0.0164,
+        "skill_mae_vs_best_naive": 0.0
+      },
+      "naive_day": {
+        "n": 203665,
+        "mae": 4.9415,
+        "rmse": 10.9085,
+        "wape_pct": 11.0235,
+        "r2": 0.9433,
+        "bias": -0.0287,
+        "skill_mae_vs_best_naive": -0.3732
+      },
+      "naive_week": {
+        "n": 203665,
+        "mae": 4.9337,
+        "rmse": 10.5907,
+        "wape_pct": 11.0062,
+        "r2": 0.9466,
+        "bias": 0.2089,
+        "skill_mae_vs_best_naive": -0.371
+      },
+      "lgbm": {
+        "n": 203665,
+        "mae": 2.5933,
+        "rmse": 5.3793,
+        "wape_pct": 5.7852,
+        "r2": 0.9862,
+        "bias": 0.2125,
+        "skill_mae_vs_best_naive": 0.2793
+      }
+    },
+    "test": {
+      "naive_last": {
+        "n": 173092,
+        "mae": 4.2286,
+        "rmse": 9.9824,
+        "wape_pct": 8.8816,
+        "r2": 0.9601,
+        "bias": 0.0378,
+        "skill_mae_vs_best_naive": 0.0
+      },
+      "naive_day": {
+        "n": 173092,
+        "mae": 5.9982,
+        "rmse": 13.5636,
+        "wape_pct": 12.5985,
+        "r2": 0.9264,
+        "bias": -0.0173,
+        "skill_mae_vs_best_naive": -0.4185
+      },
+      "naive_week": {
+        "n": 173092,
+        "mae": 7.0584,
+        "rmse": 14.7873,
+        "wape_pct": 14.8252,
+        "r2": 0.9125,
+        "bias": 0.0615,
+        "skill_mae_vs_best_naive": -0.6692
+      },
+      "lgbm": {
+        "n": 173092,
+        "mae": 3.0824,
+        "rmse": 6.5001,
+        "wape_pct": 6.4742,
+        "r2": 0.9831,
+        "bias": 0.4463,
+        "skill_mae_vs_best_naive": 0.2711
+      }
+    }
+  },
+  "best_naive": "naive_last",
+  "test_meters_lgbm_beats_best_naive": "49/53",
+  "test_meters_lgbm_worse": [
+    6,
+    32,
+    46,
+    63
+  ]
+}
